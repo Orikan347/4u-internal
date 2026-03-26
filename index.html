@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4U 人際教育學院 — 顧問商談銷售路徑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: #0a0e1a;
+    color: #e0e6f0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 40px 20px 20px;
+    background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%);
+    border-bottom: 2px solid rgba(100, 180, 255, 0.15);
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 900;
+    background: linear-gradient(90deg, #64b4ff, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+  }
+  .header p {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #8899bb;
+  }
+
+  /* Tab Navigation */
+  .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    padding: 20px 20px 0;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .tab-btn {
+    flex: 1;
+    max-width: 350px;
+    padding: 16px 24px;
+    border: 2px solid rgba(100, 180, 255, 0.2);
+    background: rgba(20, 25, 45, 0.8);
+    color: #8899bb;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Noto Sans TC', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .tab-btn:first-child { border-radius: 12px 0 0 12px; }
+  .tab-btn.active {
+    background: linear-gradient(135deg, #1e3a5f, #2a1f4e);
+    border-color: #64b4ff;
+    color: #fff;
+    box-shadow: 0 0 20px rgba(100, 180, 255, 0.15);
+  }
+  .tab-btn:hover:not(.active) {
+    background: rgba(30, 40, 70, 0.8);
+    color: #b0c4de;
+  }
+
+  /* Content area */
+  .content { padding: 30px 20px 60px; max-width: 900px; margin: 0 auto; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Opening question */
+  .opening {
+    background: linear-gradient(135deg, rgba(100, 180, 255, 0.08), rgba(167, 139, 250, 0.08));
+    border: 1px solid rgba(100, 180, 255, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 30px;
+  }
+  .opening-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64b4ff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .opening-text {
+    font-size: 17px;
+    line-height: 1.7;
+    color: #d0daf0;
+    font-weight: 500;
+  }
+
+  /* Branch cards */
+  .branch {
+    margin-bottom: 16px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: all 0.3s;
+  }
+  .branch:hover { border-color: rgba(255,255,255,0.12); }
+
+  .branch-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 22px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+  }
+  .branch-header::after {
+    content: '▸';
+    position: absolute;
+    right: 22px;
+    font-size: 18px;
+    color: rgba(255,255,255,0.3);
+    transition: transform 0.3s;
+  }
+  .branch.open .branch-header::after { transform: rotate(90deg); }
+
+  .branch-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .branch-title { font-size: 17px; font-weight: 700; }
+  .branch-subtitle { font-size: 13px; margin-top: 2px; opacity: 0.7; }
+
+  .branch-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+    background: rgba(0,0,0,0.15);
+  }
+  .branch.open .branch-body { max-height: 3000px; }
+  .branch-inner { padding: 0 22px 22px; }
+
+  /* Signal tags */
+  .signals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0;
+  }
+  .signal {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #99aabb;
+  }
+
+  /* Script block */
+  .script {
+    background: rgba(255,255,255,0.03);
+    border-left: 3px solid;
+    border-radius: 0 10px 10px 0;
+    padding: 16px 18px;
+    margin: 12px 0;
+    line-height: 1.8;
+    font-size: 14.5px;
+    color: #c8d4e6;
+  }
+  .script-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  /* Course badge */
+  .course-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    margin: 4px 4px 4px 0;
+  }
+
+  /* Sub-branch */
+  .sub-branch {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .sub-branch-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Colors */
+  .c-blue .branch-header { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05)); }
+  .c-blue .branch-icon { background: rgba(59,130,246,0.2); color: #60a5fa; }
+  .c-blue .branch-title { color: #93c5fd; }
+  .c-blue .script { border-color: #3b82f6; }
+  .c-blue .script-label { color: #60a5fa; }
+
+  .c-purple .branch-header { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.05)); }
+  .c-purple .branch-icon { background: rgba(139,92,246,0.2); color: #a78bfa; }
+  .c-purple .branch-title { color: #c4b5fd; }
+  .c-purple .script { border-color: #8b5cf6; }
+  .c-purple .script-label { color: #a78bfa; }
+
+  .c-green .branch-header { background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)); }
+  .c-green .branch-icon { background: rgba(16,185,129,0.2); color: #34d399; }
+  .c-green .branch-title { color: #6ee7b7; }
+  .c-green .script { border-color: #10b981; }
+  .c-green .script-label { color: #34d399; }
+
+  .c-orange .branch-header { background: linear-gradient(135deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05)); }
+  .c-orange .branch-icon { background: rgba(249,115,22,0.2); color: #fb923c; }
+  .c-orange .branch-title { color: #fdba74; }
+  .c-orange .script { border-color: #f97316; }
+  .c-orange .script-label { color: #fb923c; }
+
+  .c-red .branch-header { background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05)); }
+  .c-red .branch-icon { background: rgba(239,68,68,0.2); color: #f87171; }
+  .c-red .branch-title { color: #fca5a5; }
+  .c-red .script { border-color: #ef4444; }
+  .c-red .script-label { color: #f87171; }
+
+  .c-cyan .branch-header { background: linear-gradient(135deg, rgba(6,182,212,0.15), rgba(6,182,212,0.05)); }
+  .c-cyan .branch-icon { background: rgba(6,182,212,0.2); color: #22d3ee; }
+  .c-cyan .branch-title { color: #67e8f9; }
+  .c-cyan .script { border-color: #06b6d4; }
+  .c-cyan .script-label { color: #22d3ee; }
+
+  .c-pink .branch-header { background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(236,72,153,0.05)); }
+  .c-pink .branch-icon { background: rgba(236,72,153,0.2); color: #f472b6; }
+  .c-pink .branch-title { color: #f9a8d4; }
+  .c-pink .script { border-color: #ec4899; }
+  .c-pink .script-label { color: #f472b6; }
+
+  /* Course color badges */
+  .badge-flow { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .badge-close { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  .badge-eff { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+  .badge-talk { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+  .badge-heart { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+  .badge-career { background: rgba(6,182,212,0.15); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); }
+  .badge-energy { background: rgba(236,72,153,0.15); color: #f472b6; border: 1px solid rgba(236,72,153,0.3); }
+
+  /* Linked badges */
+  a.course-badge { text-decoration: none; cursor: pointer; transition: all 0.2s; }
+  a.course-badge:hover { transform: scale(1.08); filter: brightness(1.3); box-shadow: 0 0 12px rgba(255,255,255,0.1); }
+
+  /* Connector line */
+  .connector {
+    text-align: center;
+    padding: 8px 0;
+    color: #445566;
+    font-size: 20px;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    padding: 20px;
+    margin-bottom: 10px;
+  }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin: 20px 0;
+  }
+
+  /* Course detail blocks */
+  .course-details { margin-top: 16px; }
+  .course-detail {
+    margin-top: 10px;
+    padding: 16px 18px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+  }
+  .course-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #b0c4de;
+  }
+  .course-detail-header::after {
+    content: '▸';
+    margin-left: auto;
+    font-size: 14px;
+    color: rgba(255,255,255,0.3);
+    transition: transform 0.3s;
+  }
+  .course-detail.open .course-detail-header::after { transform: rotate(90deg); }
+  .course-detail-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  .course-detail.open .course-detail-body { max-height: 2000px; }
+  .course-detail-inner { padding-top: 12px; }
+
+  /* Checkpoint Gate */
+  .checkpoint-gate {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 0 20px;
+  }
+  .checkpoint-card {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(245, 158, 11, 0.04));
+    border: 2px solid rgba(251, 191, 36, 0.3);
+    border-radius: 20px;
+    padding: 32px 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .checkpoint-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b);
+  }
+  .checkpoint-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .checkpoint-icon {
+    font-size: 28px;
+    width: 48px; height: 48px;
+    background: rgba(251, 191, 36, 0.15);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .checkpoint-title {
+    font-size: 20px;
+    font-weight: 900;
+    color: #fbbf24;
+  }
+  .checkpoint-subtitle {
+    font-size: 13px;
+    color: #b8a060;
+    margin-bottom: 20px;
+    padding-left: 60px;
+  }
+  .checkpoint-source {
+    font-size: 12px;
+    color: #8a7a50;
+    margin-bottom: 18px;
+    padding-left: 60px;
+    font-style: italic;
+  }
+  .check-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .check-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(251, 191, 36, 0.12);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    user-select: none;
+  }
+  .check-item:hover {
+    background: rgba(251, 191, 36, 0.06);
+    border-color: rgba(251, 191, 36, 0.25);
+  }
+  .check-item.checked {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+  .check-box {
+    width: 26px; height: 26px;
+    border: 2px solid rgba(251, 191, 36, 0.4);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.3s;
+    font-size: 15px;
+    color: transparent;
+  }
+  .check-item.checked .check-box {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: #10b981;
+    color: #34d399;
+  }
+  .check-num {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fbbf24;
+    min-width: 20px;
+  }
+  .check-item.checked .check-num { color: #34d399; }
+  .check-text {
+    font-size: 15px;
+    color: #d0daf0;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+  .check-hint {
+    font-size: 12px;
+    color: #8899bb;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .checkpoint-progress {
+    margin-top: 20px;
+    text-align: center;
+  }
+  .progress-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f59e0b, #10b981);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.5s ease;
+  }
+  .progress-text {
+    font-size: 13px;
+    color: #8899bb;
+    transition: all 0.3s;
+  }
+  .progress-text.complete {
+    color: #34d399;
+    font-weight: 700;
+  }
+
+  /* Hidden content when gate is locked */
+  .content-locked {
+    opacity: 0.15;
+    pointer-events: none;
+    filter: blur(3px);
+    transition: all 0.5s ease;
+  }
+  .content-unlocked {
+    opacity: 1;
+    pointer-events: auto;
+    filter: none;
+    transition: all 0.5s ease;
+  }
+  .tabs-locked {
+    opacity: 0.15;
+    pointer-events: none;
+    filter: blur(2px);
+    transition: all 0.5s ease;
+  }
+  .tabs-unlocked {
+    opacity: 1;
+    pointer-events: auto;
+    filter: none;
+    transition: all 0.5s ease;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 30px 20px;
+    font-size: 12px;
+    color: #556677;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>4U 人際教育學院 — 顧問商談銷售路徑</h1>
+  <p>教育顧問專用 ｜ 點擊分支可展開回話腳本</p>
+</div>
+
+<div class="legend">
+  <a href="https://orikan347.github.io/taixin-website/liuliang.html" target="_blank" rel="noopener" class="course-badge badge-flow">流量磁鐵</a>
+  <a href="https://orikan347.github.io/taixin-website/chengjiaoditu.html" target="_blank" rel="noopener" class="course-badge badge-close">成交地圖</a>
+  <a href="https://orikan347.github.io/taixin-website/jizhixiaolv.html" target="_blank" rel="noopener" class="course-badge badge-eff">極致效率</a>
+  <a href="https://orikan347.github.io/taixin-website/yanzhiyouwu.html" target="_blank" rel="noopener" class="course-badge badge-talk">言之有物</a>
+  <a href="https://orikan347.github.io/taixin-website/zhizhirenxin.html" target="_blank" rel="noopener" class="course-badge badge-heart">直指人心</a>
+  <span class="course-badge badge-career">生涯運數（4U學院）</span>
+  <span class="course-badge badge-energy">影響力（4U學院）</span>
+</div>
+
+<!-- Checkpoint Gate: 五大核心問題 -->
+<div class="checkpoint-gate">
+  <div class="checkpoint-card">
+    <div class="checkpoint-header">
+      <div class="checkpoint-icon">🔑</div>
+      <div class="checkpoint-title">五大核心問題 — 你確認了嗎？</div>
+    </div>
+    <div class="checkpoint-subtitle">在開始商談路徑之前，請先確認你已掌握這位客戶的五大核心資訊。全部打勾後才能進入銷售路徑。</div>
+    <div class="checkpoint-source">出處：成交地圖 — 二、核心問題</div>
+    <ul class="check-list">
+      <li class="check-item" onclick="toggleCheck(this)">
+        <div class="check-box">✓</div>
+        <div class="check-num">1</div>
+        <div class="check-text">決定人是誰（出錢的人）？</div>
+        <div class="check-hint">誰買單</div>
+      </li>
+      <li class="check-item" onclick="toggleCheck(this)">
+        <div class="check-box">✓</div>
+        <div class="check-num">2</div>
+        <div class="check-text">預算有多少？</div>
+        <div class="check-hint">能花多少</div>
+      </li>
+      <li class="check-item" onclick="toggleCheck(this)">
+        <div class="check-box">✓</div>
+        <div class="check-num">3</div>
+        <div class="check-text">購買目的？</div>
+        <div class="check-hint">為什麼要買</div>
+      </li>
+      <li class="check-item" onclick="toggleCheck(this)">
+        <div class="check-box">✓</div>
+        <div class="check-num">4</div>
+        <div class="check-text">之前沒買的原因是什麼？</div>
+        <div class="check-hint">卡在哪裡</div>
+      </li>
+      <li class="check-item" onclick="toggleCheck(this)">
+        <div class="check-box">✓</div>
+        <div class="check-num">5</div>
+        <div class="check-text">有看過競爭品牌是什麼？</div>
+        <div class="check-hint">比過什麼</div>
+      </li>
+    </ul>
+    <div class="checkpoint-progress">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">已確認 0 / 5 題 — 請逐一打勾確認</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab Navigation -->
+<div class="tabs tabs-locked" id="mainTabs" style="max-width:1000px">
+  <button class="tab-btn active" onclick="switchTab('boss')">對老闆（管理者視角）</button>
+  <button class="tab-btn" onclick="switchTab('sales')">對銷售顧問（個人視角）</button>
+  <button class="tab-btn" onclick="switchTab('objection')">被拒絕時（異議處理）</button>
+  <button class="tab-btn" onclick="switchTab('qa')" style="border-radius:0 12px 12px 0">客戶常見 QA</button>
+</div>
+
+<div class="content content-locked" id="mainContent">
+
+<!-- ==================== TAB 1: 老闆 ==================== -->
+<div id="tab-boss" class="tab-content active">
+
+  <div class="opening">
+    <div class="opening-label">開場診斷問句</div>
+    <div class="opening-text">
+      「老闆，想請教一下，您覺得目前團隊最大的挑戰，是夥伴們<strong>不想做</strong>、<strong>不會做</strong>、還是<strong>做不好</strong>？」
+    </div>
+  </div>
+
+  <!-- 1. 意願 -->
+  <div class="branch c-cyan" id="boss-1">
+    <div class="branch-header" onclick="toggleBranch('boss-1')">
+      <div class="branch-icon">💤</div>
+      <div>
+        <div class="branch-title">不想做（意願問題）</div>
+        <div class="branch-subtitle">團隊沒有動力、每天混日子、留不住人</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">沒有動力</span>
+        <span class="signal">每天混日子</span>
+        <span class="signal">離職率很高</span>
+        <span class="signal">招人難留人更難</span>
+        <span class="signal">不知道自己要什麼</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要夥伴們能夠自發地主動改變和行動，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為意願問題的根源，通常不在於他們不聰明，而是他們找不到自己的定位，或者沒有看到成長的可能。我們服務過很多公司，最後業績跳躍的，都是因為老闆先改變了，整個團隊才跟著動。<br><br>
+        泰欣老師有一套系統專門解決這個。核心是要先幫夥伴把自我認知拉起來，他們才會主動改變。同時也需要教他們一套做事的系統，這樣他們才能看到成就感，意願自然就回來了。<br><br>
+        最直接的是<strong>『成交地圖』</strong>課程——它把成交流程拆成四大關卡，每一關都有明確的步驟和公式。你的夥伴學完之後，立馬就能看到成果，有了成就感，動機就出來了。搭配<strong>『言之有物』</strong>課程，教他們表達力公式和 30 秒電梯簡報，這樣他們就能用更有說服力的方式去推動業績，自信心也會提升。一旦夥伴有了能力和自信，意願問題就解決了。我見過這樣做的老闆，團隊動機完全不一樣。」
+      </div>
+      <div>
+        <span class="course-badge badge-close">→ 成交地圖</span>
+        <span class="course-badge badge-talk">→ 言之有物</span>
+        <span class="course-badge badge-energy">→ 影響力</span>
+        <span class="course-badge badge-career">→ 生涯運數</span>
+      </div>
+      <div class="course-details">
+        <div class="course-detail" onclick="toggleDetail(this)">
+          <div class="course-detail-header"><span class="course-badge badge-close" style="margin:0">成交地圖</span> 進一步說明</div>
+          <div class="course-detail-body"><div class="course-detail-inner">
+            <div class="script" style="border-color:#ef4444">
+              <div class="script-label" style="color:#f87171">成交地圖 — 怎麼跟客戶說</div>
+              「『成交地圖』把整個成交流程拆成<strong>四大關卡</strong>——第一印象、核心問題、產品介紹、成交 365。每一關都有明確的步驟和公式，你的夥伴學完之後，立馬就能看到成果。<br><br>
+              比如第二關『核心問題』，教的是<strong>五大核心問題</strong>——決定人是誰、預算多少、購買目的、之前沒買的原因、看過什麼競爭品牌。這五個問題問完，客戶真正在意的東西就一覽無遺了。然後第三關用<strong>MBAF 產品介紹法</strong>——先讓對方點頭（Mini-yes）、再講利益（Benefit）、再講優勢（Advantage）、最後講特性（Feature）加上故事讓他記住。<br><br>
+              一旦夥伴有了這套系統，每次面對客戶都知道下一步該做什麼，成就感就出來了，意願自然就跟著回來了。」
+            </div>
+          </div></div>
+        </div>
+        <div class="course-detail" onclick="toggleDetail(this)">
+          <div class="course-detail-header"><span class="course-badge badge-talk" style="margin:0">言之有物</span> 進一步說明</div>
+          <div class="course-detail-body"><div class="course-detail-inner">
+            <div class="script" style="border-color:#f97316">
+              <div class="script-label" style="color:#fb923c">言之有物 — 怎麼跟客戶說</div>
+              「『言之有物』教的是<strong>表達力公式：能量 × 邏輯 × 格局</strong>。能量就是 DISC 四種風格的說話方式——力量、幽默、溫度、真實。邏輯就是把想法組織清楚的方法。格局就是站在更高的角度去說服。<br><br>
+              課程還教<strong>30 秒電梯簡報</strong>——用『挖、補、報、約』四步驟，讓你的夥伴能在最短時間內精準傳達價值。搭配<strong>克服恐懼三部曲 YPD</strong>（Yes → Practice → Do it），讓不敢開口的人也能自信表達。<br><br>
+              當夥伴的表達能力提升了，他們在面對客戶時更有自信，在團隊溝通時更順暢，意願自然就回來了。」
+            </div>
+          </div></div>
+        </div>
+        <div class="course-detail" onclick="toggleDetail(this)">
+          <div class="course-detail-header"><span class="course-badge badge-energy" style="margin:0">影響力</span> 進一步說明</div>
+          <div class="course-detail-body"><div class="course-detail-inner">
+            <div class="script" style="border-color:#ec4899">
+              <div class="script-label" style="color:#f472b6">影響力 — 怎麼跟客戶說</div>
+              「『影響力』課程專門解決的是<strong>內在驅動力</strong>的問題。很多夥伴不是不會做，是沒有被點燃。這堂課教的是怎麼透過自我覺察和能量管理，找到自己內心真正想要的東西，把那股力量釋放出來。<br><br>
+              當一個人的影響力被啟動了，他不只自己會動起來，還會帶動身邊的人一起改變。對老闆來說，這就是團隊文化開始轉變的起點。」
+            </div>
+          </div></div>
+        </div>
+        <div class="course-detail" onclick="toggleDetail(this)">
+          <div class="course-detail-header"><span class="course-badge badge-career" style="margin:0">生涯運數</span> 進一步說明</div>
+          <div class="course-detail-body"><div class="course-detail-inner">
+            <div class="script" style="border-color:#06b6d4">
+              <div class="script-label" style="color:#22d3ee">生涯運數 — 怎麼跟客戶說</div>
+              「『生涯運數』解決的是<strong>自我定位</strong>的問題——你的夥伴不知道自己是誰、適合做什麼、未來要往哪裡走。這堂課透過系統化的方式，幫助每個人找到自己的天賦和定位。<br><br>
+              當一個人清楚知道自己為什麼要做這份工作，他的意願就不再需要外力推動了。這就是從『被動工作』變成『主動選擇』的關鍵。」
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 2. 態度 -->
+  <div class="branch c-orange" id="boss-2">
+    <div class="branch-header" onclick="toggleBranch('boss-2')">
+      <div class="branch-icon">🗣️</div>
+      <div>
+        <div class="branch-title">做不好（態度 / 溝通問題）</div>
+        <div class="branch-subtitle">態度差、溝通不順、主管帶不動人</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">態度不好</span>
+        <span class="signal">跟客人吵架</span>
+        <span class="signal">團隊溝通不順</span>
+        <span class="signal">主管帶不動</span>
+        <span class="signal">交代事情做不到位</span>
+        <span class="signal">講話得罪人</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要團隊的溝通能力能夠提升，讓大家更能有效地表達，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為 80% 的所謂『態度不好』，其實是<strong>溝通表達</strong>的問題。同樣一句話，如果音調、肢體、能量不對，聽起來就是在吵架；但如果表達對了，同一句話就能變成在協商。梅拉賓法則告訴我們，溝通的影響力 55% 來自肢體語言、38% 來自聲音語調。<br><br>
+        泰欣老師的<strong>『言之有物』</strong>課程就是為了解決這個。用<strong>表達力公式——能量 + 邏輯 + 格局</strong>，系統化地把夥伴的表達能力拉起來。還教<strong>30秒電梯簡報</strong>技巧，讓他們在最短時間內精準傳達重點。怎麼跟上面的老闆彙報、怎麼帶下面的夥伴、怎麼在公眾場合表達自己，每一種角色都有不同的溝通策略。我見過的老闆用這套系統，團隊的溝通品質和員工反應完全不同。」
+      </div>
+      <div>
+        <span class="course-badge badge-talk">→ 言之有物</span>
+        <span class="course-badge badge-energy">→ 影響力</span>
+        <span class="course-badge badge-career">→ 生涯運數</span>
+      </div>
+      <div class="course-details">
+        <div class="course-detail" onclick="toggleDetail(this)">
+          <div class="course-detail-header"><span class="course-badge badge-talk" style="margin:0">言之有物</span> 進一步說明</div>
+          <div class="course-detail-body"><div class="course-detail-inner">
+            <div class="script" style="border-color:#f97316">
+              <div class="script-label" style="color:#fb923c">言之有物 — 怎麼跟客戶說</div>
+              「『言之有物』的核心就是解決『心裡想的是 A，說出來是 B，對方理解成 C』的問題。課程教的<strong>表達力公式：能量 × 邏輯 × 格局</strong>，系統化地把夥伴的表達能力拉起來。<br><br>
+              課程還教<strong>三種角色的溝通策略</strong>——向上溝通（怎麼跟老闆彙報）、平級溝通（怎麼跟同事協作）、向下溝通（怎麼帶團隊）。基層要尊嚴、中層要發展、高層要未來——不同層級的需求不一樣，溝通方式也要不一樣。<br><br>
+              搭配<strong>30 秒電梯簡報</strong>技巧，讓夥伴能在最短時間內精準傳達重點，不再雞同鴨講。」
+            </div>
+          </div></div>
+        </div>
+        <div class="course-detail" onclick="toggleDetail(this)">
+          <div class="course-detail-header"><span class="course-badge badge-energy" style="margin:0">影響力</span> 進一步說明</div>
+          <div class="course-detail-body"><div class="course-detail-inner">
+            <div class="script" style="border-color:#ec4899">
+              <div class="script-label" style="color:#f472b6">影響力 — 怎麼跟客戶說</div>
+              「態度問題的根源很多時候不只是溝通技巧，而是<strong>內在能量不足</strong>。『影響力』課程幫助夥伴提升自我覺察，當一個人內在狀態穩定了，他說出來的話自然就不會讓人不舒服。<br><br>
+              影響力不是靠嗓門大，而是靠內在的力量。這堂課教的就是怎麼從裡到外散發出讓人信任的氣場。」
+            </div>
+          </div></div>
+        </div>
+        <div class="course-detail" onclick="toggleDetail(this)">
+          <div class="course-detail-header"><span class="course-badge badge-career" style="margin:0">生涯運數</span> 進一步說明</div>
+          <div class="course-detail-body"><div class="course-detail-inner">
+            <div class="script" style="border-color:#06b6d4">
+              <div class="script-label" style="color:#22d3ee">生涯運數 — 怎麼跟客戶說</div>
+              「很多態度問題的源頭其實是<strong>對工作的認同感不足</strong>。『生涯運數』幫助夥伴找到自己的定位跟天賦，當他清楚知道自己為什麼在這裡，態度就會從被動變成主動。<br><br>
+              這堂課不是教技能，是教自我認知。認知對了，態度自然就對了。」
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 3. 能力 -->
+  <div class="branch c-red" id="boss-3">
+    <div class="branch-header" onclick="toggleBranch('boss-3')">
+      <div class="branch-icon">📊</div>
+      <div>
+        <div class="branch-title">不會做（能力問題）</div>
+        <div class="branch-subtitle">不會開發、成交率低、沒有標準流程</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">不會開發客戶</span>
+        <span class="signal">成交率很低</span>
+        <span class="signal">不會談判</span>
+        <span class="signal">沒有標準流程</span>
+        <span class="signal">每個人方法都不一樣</span>
+      </div>
+      <div class="script">
+        <div class="script-label">追問腳本</div>
+        「老闆，能力問題其實是最好解決的，因為能力可以透過系統來複製。我先問您一個關鍵問題：您覺得團隊目前的瓶頸，是<strong>客人不夠多</strong>，還是<strong>客人來了成交不了</strong>？」
+      </div>
+
+      <!-- 子分支 A -->
+      <div class="sub-branch">
+        <div class="sub-branch-title">
+          <span class="course-badge badge-flow" style="margin:0">流量磁鐵</span>
+          客人不夠多（名單問題）
+        </div>
+        <div class="script" style="margin-top:8px">
+          <div class="script-label">回話腳本</div>
+          「所以您想要一套系統幫您持續產生新名單，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「因為泰欣老師有一個核心公式：<strong>業績 = 名單 × 成交率</strong>。成熟業務的成交率最多差 2 倍，但名單量可以是無限倍，所以開發名單才是真正的槓桿。<br><br>
+          『流量磁鐵』正是為了系統性地解決名單問題。課程用<strong>天地人網</strong>四大打法教你怎麼開發客戶——線上和線下互相導流、社群經營加個人品牌、實體場景和人脈串聯。還會教<strong>客戶名單管理四部曲：存→記→分→細</strong>，讓你的每一個名單都不會漏掉。課程會給你一套完整的執行流程，你回去可以直接複製給團隊每一個業務。我見過用這套系統的老闆，三個月內新客開發量成長了 65%。」
+        </div>
+      </div>
+
+      <!-- 子分支 B -->
+      <div class="sub-branch" style="margin-top:10px">
+        <div class="sub-branch-title">
+          <span class="course-badge badge-close" style="margin:0">成交地圖</span>
+          客人來了成交不了
+        </div>
+        <div class="script" style="margin-top:8px">
+          <div class="script-label">回話腳本</div>
+          「所以您想要一套流程讓您知道每一步該怎麼做，最後能夠有效成交客戶，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「因為大多數時候不是產品不好，而是成交流程不夠清楚。『成交地圖』就是為了系統化解決這個。課程把整個成交流程拆成<strong>四大關卡</strong>——從<strong>第一印象</strong>開始建立信任，然後<strong>用五大核心問題逐步挖掘需求</strong>，接著<strong>用產品介紹公式來介紹</strong>（先讓對方點頭、再講利益、再講優勢、最後講特性，加上故事讓他記住），最後<strong>用成交 365 流程引導他成交</strong>，包括完整的異議處理。每一關都有明確的步驟和公式。這套系統不只你能用，回去可以直接拿去訓練你的團隊。我見過的新手業務，用這套系統第一個月成交率就從 15% 跳到 68%。」
+        </div>
+        <div style="margin-top:8px">
+          <span class="course-badge badge-close">→ 成交地圖</span>
+          <span class="course-badge badge-heart">→ 直指人心</span>
+        </div>
+        <div class="course-details">
+          <div class="course-detail" onclick="toggleDetail(this)">
+            <div class="course-detail-header"><span class="course-badge badge-close" style="margin:0">成交地圖</span> 進一步說明</div>
+            <div class="course-detail-body"><div class="course-detail-inner">
+              <div class="script" style="border-color:#ef4444">
+                <div class="script-label" style="color:#f87171">成交地圖 — 怎麼跟客戶說</div>
+                「『成交地圖』用<strong>四大關卡</strong>帶團隊一步一步拆解成交流程。從<strong>第一印象</strong>建立信任開始——教的不是說『你辦公室好氣派』這種空泛讚美，而是用『具體事實 + 正面特質』公式送出情緒禮物。<br><br>
+                然後用<strong>五大核心問題</strong>逐步挖掘需求，搭配<strong>開放式和封閉式問題交叉使用</strong>跟<strong>Toyota 5 Why</strong> 找到客戶內心深處真正的需求。<br><br>
+                第三關用<strong>MBAF 產品介紹法</strong>精準傳達價值。最後用<strong>成交 365 流程</strong>引導成交，包含完整的<strong>異議處理三步驟：理解→證實→結束</strong>。每一關都有明確的步驟和公式，回去可以直接複製給團隊。」
+              </div>
+            </div></div>
+          </div>
+          <div class="course-detail" onclick="toggleDetail(this)">
+            <div class="course-detail-header"><span class="course-badge badge-heart" style="margin:0">直指人心</span> 進一步說明</div>
+            <div class="course-detail-body"><div class="course-detail-inner">
+              <div class="script" style="border-color:#8b5cf6">
+                <div class="script-label" style="color:#a78bfa">直指人心 — 怎麼跟客戶說</div>
+                「『直指人心』教的是<strong>DISC 四大行為模式</strong>——D 掌控型（有野心）、I 影響型（很熱心）、S 穩定型（有耐心）、C 分析型（很小心）。透過觀察客戶的<strong>外貌舉止、聲音語調、內心想法、個人喜好</strong>，快速判斷他是哪一型。<br><br>
+                判斷完之後直接套回成交地圖四大關卡——D 型要結果不廢話、I 型要感覺不無聊、S 型要安全不麻煩、C 型要數據不忽悠。同一套產品，面對不同類型的客戶，說法完全不一樣。<br><br>
+                這就是為什麼有些業務用同一套方法，有人買單有人不買——因為他沒有看懂客戶是哪一種人。」
+              </div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 子分支 C: 全都有 -->
+      <div class="sub-branch" style="margin-top:10px">
+        <div class="sub-branch-title">
+          ⚡ 如果兩個都有問題
+        </div>
+        <div class="script" style="margin-top:8px">
+          <div class="script-label">回話腳本</div>
+          「所以您想要一套完整的銷售系統，讓流量、成交、人才管理全部都有清楚的標準流程，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「因為前端流量跟後端成交都有問題，代表您的團隊需要的是一套完整的銷售系統，而不是零散的解決方案。<br><br>
+          泰欣老師的課程正好就是一個完整的飛輪系統。『流量磁鐵』用天地人網解決『客人怎麼來』，『成交地圖』用四大關卡和系統化流程解決『來了怎麼成交』，『言之有物』用表達力公式解決『怎麼說他才聽懂』，『直指人心』用 DISC 解決『怎麼看懂客戶』，『極致效率』解決『怎麼在有限時間做最多事』。五堂課是一個閉環，可以整套導入，也可以先從最痛的開始。根據我的經驗，大部分公司先上成交地圖或流量磁鐵，因為這兩堂最直接影響業績，然後再補其他的。一旦第一堂課有成效，整個飛輪就會轉起來。」
+        </div>
+        <div style="margin-top:8px">
+          <span class="course-badge badge-flow">流量磁鐵</span>
+          <span class="course-badge badge-close">成交地圖</span>
+          <span class="course-badge badge-eff">極致效率</span>
+          <span class="course-badge badge-talk">言之有物</span>
+          <span class="course-badge badge-heart">直指人心</span>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+
+</div><!-- end tab-boss -->
+
+<!-- ==================== TAB 2: 銷售顧問 ==================== -->
+<div id="tab-sales" class="tab-content">
+
+  <div class="opening">
+    <div class="opening-label">開場診斷問句</div>
+    <div class="opening-text">
+      「想請問你一下，你目前在銷售上最困擾的是什麼？是<strong>業績起不來</strong>、<strong>每天很忙但沒有成果</strong>、還是<strong>帶團隊或面對人群的時候有壓力</strong>？」
+    </div>
+  </div>
+
+  <!-- (a) 生存問題 -->
+  <div class="branch c-blue" id="sales-1">
+    <div class="branch-header" onclick="toggleBranch('sales-1')">
+      <div class="branch-icon">📉</div>
+      <div>
+        <div class="branch-title">(a) 生存問題：業績起不來</div>
+        <div class="branch-subtitle">名單不夠多？還是成交率不夠高？</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="script">
+        <div class="script-label">追問腳本</div>
+        「業績起不來的話，我再幫你釐清一下——你覺得主要是<strong>客人不夠多</strong>（名單問題），還是<strong>客人有來但成交不了</strong>（成交問題）？」
+      </div>
+
+      <!-- 名單 -->
+      <div class="sub-branch">
+        <div class="sub-branch-title">
+          <span class="course-badge badge-flow" style="margin:0">流量磁鐵</span>
+          客人不夠多（名單問題）
+        </div>
+        <div class="signals">
+          <span class="signal">名單不夠</span>
+          <span class="signal">不知道客人在哪</span>
+          <span class="signal">舊客流失</span>
+          <span class="signal">不會經營自媒體</span>
+          <span class="signal">不敢曝光</span>
+        </div>
+        <div class="script" style="margin-top:8px">
+          <div class="script-label">回話腳本</div>
+          「所以你想要一套系統幫你持續產生新名單，讓你不用只靠朋友介紹或被動開發，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「因為泰欣老師有個核心公式很重要：<strong>業績 = 名單 × 成交率</strong>。成熟業務的成交率最多差 2 倍，但名單量可以是無限倍。『流量磁鐵』正是為了教你系統性地開發名單。用<strong>天地人網</strong>四大打法——線上線下互相導流、社群經營加個人品牌、實體場景和人脈串聯。課程還教<strong>客戶管理四部曲：存→記→分→細</strong>，讓你的每一個名單都不會漏掉。泰欣老師說頂尖銷售有四個共同特徵，其中最重要的就是有系統地管理名單。我見過的學員，用了這套系統之後，半年內客戶介紹佔新客源的 65%。」
+        </div>
+      </div>
+
+      <!-- 成交 -->
+      <div class="sub-branch" style="margin-top:10px">
+        <div class="sub-branch-title">
+          <span class="course-badge badge-close" style="margin:0">成交地圖</span>
+          客人來了但成交不了
+        </div>
+        <div class="signals">
+          <span class="signal">客戶說「再想想」</span>
+          <span class="signal">不會處理異議</span>
+          <span class="signal">不會報價</span>
+          <span class="signal">找不到客戶痛點</span>
+          <span class="signal">客單價拉不上去</span>
+        </div>
+        <div class="script" style="margin-top:8px">
+          <div class="script-label">回話腳本</div>
+          「所以你想要一套流程讓你知道每一步該怎麼做，最後能有效成交客戶，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「因為大部分成交失敗不是因為產品不好，而是因為沒有找到客戶真正在意的那個點。泰欣老師的『成交地圖』就是為了系統化解決這個。課程用<strong>四大關卡</strong>帶你一步一步拆解整個成交流程——從<strong>第一印象</strong>開始建立信任，用<strong>五大核心問題逐步挖掘需求</strong>，用<strong>產品介紹公式精準傳達價值</strong>，最後<strong>用成交 365 流程引導成交</strong>，包含完整的異議處理。泰欣老師常說：『話術讓你成交一陣子，系統才能讓你成交一輩子。』這套課程的威力不是靠幾句好話，而是靠一套可以複製的系統。一旦你掌握了這套系統，回去可以直接教給你的團隊。」
+        </div>
+        <div style="margin-top:8px">
+          <span class="course-badge badge-close">→ 成交地圖</span>
+          <span class="course-badge badge-heart">→ 直指人心（搭配）</span>
+        </div>
+        <div class="course-details">
+          <div class="course-detail" onclick="toggleDetail(this)">
+            <div class="course-detail-header"><span class="course-badge badge-close" style="margin:0">成交地圖</span> 進一步說明</div>
+            <div class="course-detail-body"><div class="course-detail-inner">
+              <div class="script" style="border-color:#ef4444">
+                <div class="script-label" style="color:#f87171">成交地圖 — 怎麼跟客戶說</div>
+                「『成交地圖』把你的成交流程拆成<strong>四大關卡</strong>。第一關<strong>第一印象</strong>——不是隨便寒暄，而是用『具體事實 + 正面特質』的讚美公式，加上肢體、眼神、關鍵字三要素同步，讓客戶的防禦雷達關閉。<br><br>
+                第二關<strong>五大核心問題</strong>——系統化地問出決定人是誰、預算多少、購買目的、之前沒買的原因、看過什麼競品。搭配開放式和封閉式問題交叉使用，降低客戶壓力。<br><br>
+                第三關<strong>MBAF 產品介紹法</strong>——先讓客戶點頭（Mini-yes），再講利益、優勢、特性，加上故事讓他記住。第四關<strong>成交 365</strong>——完整的報價流程和異議處理。每一關都有公式，照著走就行。」
+              </div>
+            </div></div>
+          </div>
+          <div class="course-detail" onclick="toggleDetail(this)">
+            <div class="course-detail-header"><span class="course-badge badge-heart" style="margin:0">直指人心</span> 進一步說明</div>
+            <div class="course-detail-body"><div class="course-detail-inner">
+              <div class="script" style="border-color:#8b5cf6">
+                <div class="script-label" style="color:#a78bfa">直指人心 — 怎麼跟客戶說</div>
+                「『直指人心』教你用<strong>DISC 四大行為模式</strong>快速看懂客戶。D 型掌控型——要結果、不被管、不廢話。I 型影響型——要感覺、要舞台、不無聊。S 型穩定型——要安全、要穩定、不麻煩。C 型分析型——要數據、要品質、不被騙。<br><br>
+                課程教你怎麼從客戶的外貌舉止、聲音語調判斷類型，然後直接套回成交地圖四大關卡。面對 D 型，你要講重點、給效率；面對 C 型，你要給數據、講邏輯。同一個產品，不同的人要用不同的方式說。這就是為什麼頂尖業務能跟任何人成交——因為他看懂了人。」
+              </div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+
+  <!-- (b) 忙碌問題 -->
+  <div class="branch c-green" id="sales-2">
+    <div class="branch-header" onclick="toggleBranch('sales-2')">
+      <div class="branch-icon">⏰</div>
+      <div>
+        <div class="branch-title">(b) 忙碌問題：每天很忙但沒成果</div>
+        <div class="branch-subtitle">時間不夠用、忙但業績沒起色</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">每天行程排滿</span>
+        <span class="signal">很努力但業績不好</span>
+        <span class="signal">時間不夠用</span>
+        <span class="signal">行政事務太多</span>
+        <span class="signal">不會安排優先順序</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以你想要一套方法讓你用更少時間做到更多業績，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為很多業務每天行程排滿滿，看起來超努力，但月底業績還是上不去。真正用在產生業績的時間少得可怕，很多時間被浪費在行政、重複的事。泰欣老師的『極致效率』就是為了解決這個。不是教你怎麼加班，而是教你怎麼在同樣的時間裡做出 3 倍的成果。核心公式是：<strong>效率 = 願景 + 可累積 + 節省時間</strong>。課程會手把手教你<strong>『效率至上通訊錄』系統</strong>和<strong>『名單建立四部曲：存→記→分→細』</strong>，加上<strong>『時間碼 + 行事曆系統』</strong>。泰欣老師有句話很深：『信任來自於 100 件 1 分的小事。』效率一旦解決了，你的名單問題和成交問題自然也會改善，因為你有時間去經營每一個客戶了。」
+      </div>
+      <div>
+        <span class="course-badge badge-eff">→ 極致效率</span>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- (c) 團隊複製 & 克服恐懼 -->
+  <div class="branch c-purple" id="sales-3">
+    <div class="branch-header" onclick="toggleBranch('sales-3')">
+      <div class="branch-icon">👥</div>
+      <div>
+        <div class="branch-title">(c) 團隊複製 & 克服恐懼</div>
+        <div class="branch-subtitle">不會帶人、面對人群緊張</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+
+      <!-- 複製團隊 -->
+      <div class="sub-branch">
+        <div class="sub-branch-title">📋 不會複製團隊</div>
+        <div class="signals">
+          <span class="signal">自己會賣但教不會別人</span>
+          <span class="signal">方法說不出來</span>
+          <span class="signal">帶人沒有架構</span>
+          <span class="signal">下屬一直犯同樣的錯</span>
+        </div>
+        <div class="script" style="margin-top:8px">
+          <div class="script-label">回話腳本</div>
+          「所以你想要一個可以複製給團隊的系統，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說對的時候：</em><br><br>
+          「因為你自己很會賣，但是你的經驗沒辦法教給別人。其實這很常見，代表我們的銷售方法還停留在直覺跟經驗的階段，還沒有變成一套別人可以複製的系統。如果你想要把自己的方法標準化，只要你上完泰欣老師的課，你就可以把這套方法複製給你的團隊。<br><br>
+          泰欣老師的課程最大的特色就是高度的系統化和可複製性。『成交地圖』會把成交流程拆成四大關卡——第一印象、核心問題、產品介紹、成交 365，每一關都有明確的步驟和公式。你學完之後，不只自己能用，還能直接拿這套架構去訓練你的團隊。搭配『言之有物』課程——它教的是表達力公式和 30 秒電梯簡報，這可以幫你解決帶團隊時的溝通問題。怎麼跟上面的老闆彙報、怎麼帶下面的夥伴、怎麼在公眾場合表達自己，每一種角色都有不同的溝通策略。這兩堂課加起來，就是你從『頂尖業務』變成『頂尖主管』的關鍵。我見過的案例，用了這套系統的新手主管，三個月內團隊成交率從 45% 提升到 72%。」
+        </div>
+        <div style="margin-top:8px">
+          <span class="course-badge badge-close">→ 成交地圖</span>
+          <span class="course-badge badge-talk">→ 言之有物</span>
+        </div>
+        <div class="course-details">
+          <div class="course-detail" onclick="toggleDetail(this)">
+            <div class="course-detail-header"><span class="course-badge badge-close" style="margin:0">成交地圖</span> 進一步說明</div>
+            <div class="course-detail-body"><div class="course-detail-inner">
+              <div class="script" style="border-color:#ef4444">
+                <div class="script-label" style="color:#f87171">成交地圖 — 怎麼跟客戶說</div>
+                「『成交地圖』最大的特色就是<strong>高度系統化和可複製性</strong>。課程把成交流程拆成四大關卡——第一印象、核心問題、產品介紹、成交 365。每一關都有明確的步驟和公式。<br><br>
+                你學完之後，不只自己能用，還能直接拿這套架構去訓練你的團隊。比如第二關的<strong>五大核心問題</strong>，你可以直接做成團隊的標準問卷。第三關的<strong>MBAF 產品介紹法</strong>，可以變成團隊的產品說明範本。<br><br>
+                過去你的銷售方法停留在直覺跟經驗的階段，學完之後它就變成了一套任何人都能複製的系統。」
+              </div>
+            </div></div>
+          </div>
+          <div class="course-detail" onclick="toggleDetail(this)">
+            <div class="course-detail-header"><span class="course-badge badge-talk" style="margin:0">言之有物</span> 進一步說明</div>
+            <div class="course-detail-body"><div class="course-detail-inner">
+              <div class="script" style="border-color:#f97316">
+                <div class="script-label" style="color:#fb923c">言之有物 — 怎麼跟客戶說</div>
+                「『言之有物』解決的是<strong>帶團隊時的溝通問題</strong>。課程教<strong>三種角色的溝通策略</strong>——向上溝通（跟老闆彙報用什麼邏輯）、平級溝通（跟同事協作用什麼語氣）、向下溝通（帶團隊用什麼方式）。<br><br>
+                核心概念是：基層夥伴要<strong>尊嚴</strong>、中層夥伴要<strong>發展</strong>、高層夥伴要<strong>未來</strong>。同一件事情，跟不同層級的人講法完全不一樣。<br><br>
+                搭配<strong>表達力公式（能量 × 邏輯 × 格局）</strong>和<strong>30 秒電梯簡報</strong>技巧，讓你從『頂尖業務』變成『頂尖主管』——不只自己會賣，還能讓團隊每一個人都會賣。」
+              </div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 克服恐懼 -->
+      <div class="sub-branch" style="margin-top:10px">
+        <div class="sub-branch-title">😰 面對人群緊張 / 不敢表達</div>
+        <div class="signals">
+          <span class="signal">上台就緊張</span>
+          <span class="signal">不敢在人多的場合說話</span>
+          <span class="signal">開會不敢發言</span>
+          <span class="signal">講話沒有結構</span>
+          <span class="signal">表達後對方聽不懂</span>
+        </div>
+        <div class="script" style="margin-top:8px">
+          <div class="script-label">回話腳本</div>
+          「所以你想要能夠自信地在人前表達自己，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「因為很多業績很好的業務，一站到台上就說不出話來。但其實不是你不會講，是你不知道怎麼有結構地組織和表達自己的想法。『言之有物』有一套完整的系統來解決這個。首先，用<strong>YPD三部曲</strong>——一步一步克服上台恐懼，靠實戰練習。其次，用<strong>表達力公式：能量 + 邏輯 + 格局</strong>來重新架構你的表達方式。課程還教<strong>30秒電梯簡報</strong>，讓你在最短時間內精準傳達重點。課程會教你一個改變人生的觀念：溝通影響力<strong>55%來自肢體語言、38%來自聲音語調、只有 7% 來自內容本身</strong>。當你同時掌握了「說什麼」和「怎麼說」，你會發現自己不再緊張了。我見過的同學上完這堂課之後，不只銷售變好了，連公司開會、客戶簡報都變順了。上台從心虛變成有自信。」
+        </div>
+        <div style="margin-top:8px">
+          <span class="course-badge badge-talk">→ 言之有物</span>
+        </div>
+      </div>
+
+    </div></div>
+  </div>
+
+</div><!-- end tab-sales -->
+
+<!-- ==================== TAB 3: 異議處理 ==================== -->
+<div id="tab-objection" class="tab-content">
+
+  <div class="opening">
+    <div class="opening-label">核心心法</div>
+    <div class="opening-text">
+      被拒絕不代表結束，代表對方還有疑慮沒被解決。<br>
+      異議處理三步驟：<strong>理解</strong>（先認同情緒）→ <strong>證實</strong>（給出解方）→ <strong>結束</strong>（用封閉式問句收尾）
+    </div>
+  </div>
+
+  <!-- 1. 沒有預算 / 太貴 -->
+  <div class="branch c-red" id="obj-1">
+    <div class="branch-header" onclick="toggleBranch('obj-1')">
+      <div class="branch-icon">💰</div>
+      <div>
+        <div class="branch-title">「沒有預算」/「太貴了」</div>
+        <div class="branch-subtitle">最常見的拒絕理由 — 90% 不是真的沒錢</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">沒有預算</span>
+        <span class="signal">太貴了</span>
+        <span class="signal">我負擔不起</span>
+        <span class="signal">要跟老婆/老公商量</span>
+        <span class="signal">下個月再說</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要在投資上更謹慎，希望能夠用合理的價格學到有價值的課程，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為我完全理解預算是需要考量的。但我想跟你分享一下——你不一定要整套買，可以先從最需要的那一堂課開始。而且一堂課的費用除以 365 天，每天不到一杯咖啡的錢，但學到的東西是可以用一輩子的。更重要的是，如果上完課之後，你每個月的業績哪怕只多成交一個客戶，這堂課的學費第一個月就賺回來了。我們有全額退費保證——如果上完課覺得沒有幫助，當天反應就全額退費。到目前為止開了 100 多堂課，零退費。所以你的風險是零，但可能的回報是一輩子的。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 2. 我再想想 / 考慮一下 -->
+  <div class="branch c-orange" id="obj-2">
+    <div class="branch-header" onclick="toggleBranch('obj-2')">
+      <div class="branch-icon">🤔</div>
+      <div>
+        <div class="branch-title">「我再想想」/「考慮一下」</div>
+        <div class="branch-subtitle">通常代表還有問題沒被解決</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">我再想想</span>
+        <span class="signal">讓我考慮一下</span>
+        <span class="signal">我回去想想</span>
+        <span class="signal">過幾天跟你說</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以你想在做決定前，先更清楚了解課程的內容和對你的幫助，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「我完全理解，做決定本來就需要時間。我比較好奇的是——你現在還在考慮哪個部分？是課程內容、時間安排、還是費用的部分？我問這個是因為，如果是我沒有講清楚的地方，我現在就可以幫你釐清，這樣你回去想的時候也比較有方向。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 3. 之前上過課沒效果 -->
+  <div class="branch c-purple" id="obj-3">
+    <div class="branch-header" onclick="toggleBranch('obj-3')">
+      <div class="branch-icon">😞</div>
+      <div>
+        <div class="branch-title">「之前上過課了，沒什麼效果」</div>
+        <div class="branch-subtitle">對培訓失望、怕又浪費錢</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">之前上過了</span>
+        <span class="signal">上課沒用</span>
+        <span class="signal">聽了很多道理但做不到</span>
+        <span class="signal">已經有銷售課了</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以你想要的是一門真正能落地、能實際用到的課程，而不只是聽起來很興奮但回去做不了，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為我完全理解你的擔心。市面上很多銷售課確實是只教觀念、教話術，聽的時候很熱血，回去之後不知道怎麼用。泰欣老師的課跟一般銷售課最大的差別有三個：第一，<strong>不教話術，教系統</strong>——有架構、有步驟、回去照著做就能用；第二，<strong>所有教學內容透明公開</strong>，上課前就可以先了解會學到什麼；第三，<strong>全額退費保證</strong>——如果你覺得學不到東西，當天反應就退費，100 多堂課從來沒有退費案例。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 4. 沒有時間 -->
+  <div class="branch c-green" id="obj-4">
+    <div class="branch-header" onclick="toggleBranch('obj-4')">
+      <div class="branch-icon">🕐</div>
+      <div>
+        <div class="branch-title">「我沒有時間」/「最近太忙了」</div>
+        <div class="branch-subtitle">可能是真忙，也可能是藉口</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">太忙了</span>
+        <span class="signal">排不出時間</span>
+        <span class="signal">等我有空再說</span>
+        <span class="signal">工作很滿</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以你想要的是能夠幫你更有效率地安排時間，讓你從忙碌中解脫出來，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為我完全理解，業務工作真的很忙。但我想跟你分享一個觀察——來上課的同學，通常都是最忙的那群人。因為他們知道，忙不是問題，忙錯方向才是問題。很多同學就是因為太忙、效率太低，才來上課。上完之後反而變得更有時間，因為他們學會了怎麼把時間花在最有產出的地方。課程只需要一天的時間。花一天學到一套可以讓你未來每天都省下時間的方法，這筆投資值不值得？」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 5. 要問老闆 / 主管 -->
+  <div class="branch c-blue" id="obj-5">
+    <div class="branch-header" onclick="toggleBranch('obj-5')">
+      <div class="branch-icon">👔</div>
+      <div>
+        <div class="branch-title">「我要問一下主管/老闆」</div>
+        <div class="branch-subtitle">決定權不在自己身上</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">要問老闆</span>
+        <span class="signal">要跟主管確認</span>
+        <span class="signal">不是我能決定的</span>
+        <span class="signal">要跟公司申請</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要能夠更有把握地向主管提出一個能被認可的方案，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「完全理解。我可以先幫你準備一份完整的課程介紹資料，包含學員的真實回饋跟課後成效，這樣你跟主管提的時候更有說服力。另外，如果方便的話，我也可以直接跟你的主管做一次簡短的說明。很多企業都是主管聽完之後，覺得這就是團隊需要的，就直接安排了。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 6. 我自己看書就好 -->
+  <div class="branch c-cyan" id="obj-6">
+    <div class="branch-header" onclick="toggleBranch('obj-6')">
+      <div class="branch-icon">📚</div>
+      <div>
+        <div class="branch-title">「我自己看書/看影片學就好」</div>
+        <div class="branch-subtitle">覺得不需要花錢上課</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">網路都有</span>
+        <span class="signal">看 YouTube 就好</span>
+        <span class="signal">自己研究就行</span>
+        <span class="signal">買書比較便宜</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要的是能夠產生真實結果的知識，而不只是理論，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為你說得沒錯，網路上確實有很多免費的銷售知識。但如果看書看影片就能解決你的問題，你現在應該已經解決了才對。差別在這裡：書跟影片給你的是零散的知識，但泰欣老師的課給你的是<strong>一套完整的系統</strong>，而且是可以讓你回去馬上執行的。更重要的是，課堂上有互動、有練習、有即時的反饋。加上課後還有客服支持，有問題隨時可以問。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 7. 不確定有效 -->
+  <div class="branch c-pink" id="obj-7">
+    <div class="branch-header" onclick="toggleBranch('obj-7')">
+      <div class="branch-icon">❓</div>
+      <div>
+        <div class="branch-title">「不確定有沒有效」/「怕學不到東西」</div>
+        <div class="branch-subtitle">信任問題 — 需要更多證據</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="signals">
+        <span class="signal">怕沒有效</span>
+        <span class="signal">怕浪費錢</span>
+        <span class="signal">不知道適不適合我</span>
+        <span class="signal">我的產業不一樣</span>
+      </div>
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要在投資之前，先看到證據證明課程真的有效，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為你會擔心效果，代表你是一個很理性的人，這很好。讓我跟你分享三個事實：第一，我們的課後回饋表單 100% 透明公開，一字不刪。你隨時可以看到所有學員的真實評價。第二，我們有滿意保證——如果上完課當天你覺得沒有幫助，直接反應就全額退費。到目前為止超過 100 堂課，零退費案例。第三，泰欣老師的學員涵蓋保險、房仲、汽車、直銷、電商、B2B⋯⋯各行各業都有。因為我們教的不是特定產業的話術，而是<strong>銷售的底層邏輯跟系統</strong>，任何產業都適用。」
+      </div>
+    </div></div>
+  </div>
+
+</div><!-- end tab-objection -->
+
+<!-- ==================== TAB 4: 客戶常見 QA ==================== -->
+<div id="tab-qa" class="tab-content">
+
+  <div class="opening">
+    <div class="opening-label">使用說明</div>
+    <div class="opening-text">
+      以下是客戶最常問的七個問題，每一題的回答都遵循 MBAF 銷售邏輯——先提問讓對方認同，再說利益和優勢，最後用具體案例來說服。<br>
+      這些對答不用記住，而是理解思路，根據實際客戶狀況靈活應用。
+    </div>
+  </div>
+
+  <!-- QA-1 -->
+  <div class="branch c-blue" id="qa-1">
+    <div class="branch-header" onclick="toggleBranch('qa-1')">
+      <div class="branch-icon">❓</div>
+      <div>
+        <div class="branch-title">「你們的課跟市面上其他銷售課有什麼不一樣？」</div>
+        <div class="branch-subtitle">差異化 — 最常被問的問題</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要的是能夠真正落地、回去當天就能用的課程，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為市面上很多銷售課常常聽完很熱血，回去卻不知道怎麼用。泰欣老師的課最大的差別是——你回去當天就能用，而且用了馬上有感。因為我們不教話術，教的是一套完整的系統。每堂課都有明確的步驟跟公式，照著做就行。而且所有教學內容課前就透明公開。比如說，成交地圖用四大關卡把成交流程拆得一清二楚，流量磁鐵用天地人網教你怎麼開發名單。加上我們有全額退費保證，零退費案例。有一位學員上過十多堂銷售課，上完成交地圖的第一週，就用系統化的方法成交了三個新客戶，比前一個月還多。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- QA-2 -->
+  <div class="branch c-red" id="qa-2">
+    <div class="branch-header" onclick="toggleBranch('qa-2')">
+      <div class="branch-icon">📋</div>
+      <div>
+        <div class="branch-title">「課程上完之後有什麼售後服務嗎？」</div>
+        <div class="branch-subtitle">售後 — 客戶關心學完之後怎麼辦</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要在課程之後還能持續得到支持，確保學到的東西真的能夠落實，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為很多人擔心上完課之後遇到問題沒人問，學了也白學。我可以跟你保證，我們的售後服務不一樣。泰欣老師平均 24 小時內會親自回覆你的問題——這不是客服，是老師本人。課後你可以持續回來複習，有專屬的線上社群、定期的案例分享、還有實戰問答，讓你在實戰中隨時有人支援。有一個學員上完課半年後，遇到一個超難搞的客戶，他直接在群裡問老師，老師十分鐘內就給出了處理方案，結果第二天就成交了。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- QA-3 -->
+  <div class="branch c-green" id="qa-3">
+    <div class="branch-header" onclick="toggleBranch('qa-3')">
+      <div class="branch-icon">🏢</div>
+      <div>
+        <div class="branch-title">「我的產業比較特殊，這套適用嗎？」</div>
+        <div class="branch-subtitle">適用性 — 各行各業都問</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要確認這套方法是否能夠適用在您的特殊產業，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為不管你賣什麼產品，只要你面對的是人，這套系統就能幫你更有效地成交。我們教的不是特定產業的話術，而是銷售的底層邏輯——怎麼了解人的真實需求、怎麼建立信任、怎麼引導決策。這些方法跨產業都通用。目前的學員涵蓋保險、房仲、汽車、直銷、電商、B2B、醫美各行各業，五年下來培養了超過 100 位 Top Sales。有一個做 B2B 工業零件的學員，他一開始也覺得銷售課不適合他。結果上完直指人心之後，他學會了怎麼用 DISC 判斷客戶的人格類型，三個月內業績直接翻倍。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- QA-4 -->
+  <div class="branch c-orange" id="qa-4">
+    <div class="branch-header" onclick="toggleBranch('qa-4')">
+      <div class="branch-icon">📅</div>
+      <div>
+        <div class="branch-title">「課程多長？上課形式是什麼？」</div>
+        <div class="branch-subtitle">形式 — 基本資訊類問題</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要的不只是聽課，而是能夠邊學邊練，上完馬上就能用，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為泰欣老師的課最大的特色就是不只用聽的，而是邊學邊練，上完馬上就能用。課程有大量的互動演練、分組練習、上台實戰，不是單向講課。每堂課大約 7 小時，一天完成。包含講解、演練、實戰、回饋四個環節，確保你不是只聽懂，而是真的學會。有一個學員說，他之前上過三天的銷售課，回去什麼都沒記住。上泰欣老師一天的課，當天晚上他就用系統化的方法重新跟一個追了三個月都沒成交的客戶對話，隔天就成交了。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- QA-5 -->
+  <div class="branch c-purple" id="qa-5">
+    <div class="branch-header" onclick="toggleBranch('qa-5')">
+      <div class="branch-icon">💡</div>
+      <div>
+        <div class="branch-title">「我應該先上哪一堂課？」</div>
+        <div class="branch-subtitle">選課 — 幫客戶做決定</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要根據自己目前最痛的問題，先集中解決那個，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為每堂課都針對一個具體問題，上完馬上有改善。最好的方式是先解決最痛的那個，效果最明顯。五堂課是一個飛輪系統，但不用一次全上，先從最需要的那堂開始。下面是選課的簡單邏輯：客人不夠多選<strong>流量磁鐵</strong>、成交率不夠高選<strong>成交地圖</strong>、時間不夠用選<strong>極致效率</strong>、表達溝通不好選<strong>言之有物</strong>、客戶類型看不懂選<strong>直指人心</strong>。根據我的經驗，大部分學員第一堂會選成交地圖或流量磁鐵，因為這兩堂最直接影響業績。我見過一個學員先上成交地圖，第一個月業績就增長了 30%，他馬上回來報名流量磁鐵。這就是飛輪的力量。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- QA-6 -->
+  <div class="branch c-cyan" id="qa-6">
+    <div class="branch-header" onclick="toggleBranch('qa-6')">
+      <div class="branch-icon">👤</div>
+      <div>
+        <div class="branch-title">「泰欣老師是誰？有什麼背景？」</div>
+        <div class="branch-subtitle">信任 — 對講師的好奇</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要確認老師本身有沒有實戰經驗，能不能真的幫到您，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為泰欣老師最大的價值就是——他教的每一件事，都是他自己在實戰中做到過的。不是學術理論，是驗證過有效的系統。他在五年內培養超過 100 位頂尖業務，幫助過的企業團隊從幾人到三千人的規模都有。而且他不是退休了來教課，他持續在第一線，每個月還在做業務、做談判。李泰欣（Orikan）是 4U 人際教育學院的企業導師，專注於銷售系統化培訓。泰欣老師常說：『我的使命是幫助每一個銷售人員有系統地成交，把時間還給自己的身體跟家庭。』很多學員說，上完課之後不只業績變好了，生活品質也提升了。」
+      </div>
+    </div></div>
+  </div>
+
+  <!-- QA-7 -->
+  <div class="branch c-pink" id="qa-7">
+    <div class="branch-header" onclick="toggleBranch('qa-7')">
+      <div class="branch-icon">🔄</div>
+      <div>
+        <div class="branch-title">「可以先試聽嗎？」/「有免費的內容可以看嗎？」</div>
+        <div class="branch-subtitle">試探 — 想先體驗再決定</div>
+      </div>
+    </div>
+    <div class="branch-body"><div class="branch-inner">
+      <div class="script">
+        <div class="script-label">回話腳本</div>
+        「所以您想要先體驗看看課程品質，確認真的有幫助再投資，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「因為你其實不用冒任何風險。我們有全額退費保證——你可以完整上完課，如果覺得沒有幫助，當天反應就全額退費。等於零風險去試聽一整天。而且所有教學大綱課前就公開，你可以先看會學到什麼。課後學員的回饋表單也是 100% 公開的，一字不刪，沒有修飾過的真實評價。有一個學員就是先看了學員回饋才報名的，他說他被一條評價打動：『這是我上過唯一一堂，回去隔天就能馬上用的課。』後來他上完之後自己也寫了一模一樣的評價。」
+      </div>
+    </div></div>
+  </div>
+
+</div><!-- end tab-qa -->
+
+</div><!-- end content -->
+
+<div class="footer">
+  4U 人際教育學院 ｜ Orikan 李泰欣 ｜ 顧問內部使用
+</div>
+
+<script>
+// Checkpoint gate logic
+function toggleCheck(el) {
+  el.classList.toggle('checked');
+  updateProgress();
+}
+function updateProgress() {
+  var total = document.querySelectorAll('.check-item').length;
+  var checked = document.querySelectorAll('.check-item.checked').length;
+  var pct = (checked / total) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  var txt = document.getElementById('progressText');
+  var tabs = document.getElementById('mainTabs');
+  var content = document.getElementById('mainContent');
+  if (checked === total) {
+    txt.textContent = '全部確認完畢！請選擇商談路徑 ↓';
+    txt.className = 'progress-text complete';
+    tabs.className = 'tabs tabs-unlocked';
+    content.className = 'content content-unlocked';
+    tabs.style.maxWidth = '1000px';
+    // smooth scroll to tabs
+    setTimeout(function(){ tabs.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
+  } else {
+    txt.textContent = '已確認 ' + checked + ' / ' + total + ' 題 — 請逐一打勾確認';
+    txt.className = 'progress-text';
+    tabs.className = 'tabs tabs-locked';
+    content.className = 'content content-locked';
+    tabs.style.maxWidth = '1000px';
+  }
+}
+
+function toggleDetail(el) {
+  el.classList.toggle('open');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  var idx = tab === 'boss' ? 0 : tab === 'sales' ? 1 : tab === 'objection' ? 2 : 3;
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+function toggleBranch(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// 課程超連結對照表（五堂主課）
+var courseLinks = {
+  '流量磁鐵': 'https://orikan347.github.io/taixin-website/liuliang.html',
+  '成交地圖': 'https://orikan347.github.io/taixin-website/chengjiaoditu.html',
+  '極致效率': 'https://orikan347.github.io/taixin-website/jizhixiaolv.html',
+  '言之有物': 'https://orikan347.github.io/taixin-website/yanzhiyouwu.html',
+  '直指人心': 'https://orikan347.github.io/taixin-website/zhizhirenxin.html'
+};
+// 將所有 course-badge 中匹配五堂主課名稱的 span 轉為 <a> 超連結
+document.querySelectorAll('.course-badge').forEach(function(el) {
+  var text = el.textContent.replace(/^→\s*/, '').trim();
+  Object.keys(courseLinks).forEach(function(name) {
+    if (text === name || text === '→ ' + name) {
+      var a = document.createElement('a');
+      a.href = courseLinks[name];
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.className = el.className;
+      a.innerHTML = el.innerHTML;
+      el.parentNode.replaceChild(a, el);
+    }
+  });
+});
+</script>
+
+</body>
+</html>
