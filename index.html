@@ -678,12 +678,12 @@
   <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 24px">
     <div style="font-size:14px;font-weight:700;color:#64b4ff;letter-spacing:2px;margin-bottom:12px">⚡ 痛點 → 課程 速查</div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px 12px;font-size:13px;align-items:center">
-      <div style="color:#99aabb">客人不夠多</div><div style="color:#445566">→</div><div><span class="course-badge badge-flow" style="font-size:12px;padding:3px 10px">流量磁鐵</span></div>
-      <div style="color:#99aabb">成交率低</div><div style="color:#445566">→</div><div><span class="course-badge badge-close" style="font-size:12px;padding:3px 10px">成交地圖</span> <span class="course-badge badge-heart" style="font-size:12px;padding:3px 10px">直指人心</span></div>
-      <div style="color:#99aabb">忙但沒成果</div><div style="color:#445566">→</div><div><span class="course-badge badge-eff" style="font-size:12px;padding:3px 10px">極致效率</span></div>
-      <div style="color:#99aabb">溝通表達差</div><div style="color:#445566">→</div><div><span class="course-badge badge-talk" style="font-size:12px;padding:3px 10px">言之有物</span></div>
-      <div style="color:#99aabb">看不懂客戶</div><div style="color:#445566">→</div><div><span class="course-badge badge-heart" style="font-size:12px;padding:3px 10px">直指人心</span></div>
-      <div style="color:#99aabb">沒有動力 / 意願低</div><div style="color:#445566">→</div><div><span class="course-badge badge-energy" style="font-size:12px;padding:3px 10px">影響力</span> <span class="course-badge badge-career" style="font-size:12px;padding:3px 10px">生涯運數</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-flow')">客人不夠多</div><div style="color:#445566">→</div><div><span class="course-badge badge-flow" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-flow')">流量磁鐵</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">成交率低</div><div style="color:#445566">→</div><div><span class="course-badge badge-close" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">成交地圖</span> <span class="course-badge badge-heart" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">直指人心</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('sales','sales-2')">忙但沒成果</div><div style="color:#445566">→</div><div><span class="course-badge badge-eff" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('sales','sales-2')">極致效率</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-2')">溝通表達差</div><div style="color:#445566">→</div><div><span class="course-badge badge-talk" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-2')">言之有物</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">看不懂客戶</div><div style="color:#445566">→</div><div><span class="course-badge badge-heart" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">直指人心</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-1')">沒有動力 / 意願低</div><div style="color:#445566">→</div><div><span class="course-badge badge-energy" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-1')">影響力</span> <span class="course-badge badge-career" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-1')">生涯運數</span></div>
     </div>
   </div>
 </div>
@@ -884,7 +884,7 @@
       </div>
 
       <!-- 子分支 A -->
-      <div class="sub-branch">
+      <div class="sub-branch" id="sub-flow">
         <div class="sub-branch-title">
           <span class="course-badge badge-flow" style="margin:0">流量磁鐵</span>
           客人不夠多（名單問題）
@@ -899,7 +899,7 @@
       </div>
 
       <!-- 子分支 B -->
-      <div class="sub-branch" style="margin-top:10px">
+      <div class="sub-branch" id="sub-close" style="margin-top:10px">
         <div class="sub-branch-title">
           <span class="course-badge badge-close" style="margin:0">成交地圖</span>
           客人來了成交不了
@@ -1562,6 +1562,27 @@ function updateProgress() {
   }
 }
 
+// Quick reference: jump to a specific branch
+function goToBranch(tab, branchId, subId) {
+  // Switch to the correct tab
+  switchTab(tab);
+  // Open the branch
+  var branch = document.getElementById(branchId);
+  if (branch && !branch.classList.contains('open')) {
+    branch.classList.add('open');
+  }
+  // Scroll to sub-branch or branch
+  var target = subId ? document.getElementById(subId) : branch;
+  if (target) {
+    setTimeout(function() {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Flash highlight
+      target.style.boxShadow = '0 0 20px rgba(251,191,36,0.4)';
+      setTimeout(function() { target.style.boxShadow = ''; }, 2000);
+    }, 200);
+  }
+}
+
 function toggleDetail(el) {
   el.classList.toggle('open');
 }
@@ -1580,17 +1601,41 @@ function toggleBranch(id) {
 // Search functionality
 function searchBranches(query) {
   var q = query.trim().toLowerCase();
-  document.querySelectorAll('.branch').forEach(function(b) {
-    if (!q) { b.style.display = ''; return; }
-    var text = b.textContent.toLowerCase();
-    b.style.display = text.includes(q) ? '' : 'none';
+  if (!q) {
+    // Reset: show all, collapse all
+    document.querySelectorAll('.branch').forEach(function(b) { b.style.display = ''; });
+    document.querySelectorAll('.sub-branch').forEach(function(s) { s.style.display = ''; });
+    return;
+  }
+  // Show all tabs content temporarily for searching
+  var tabs = ['tab-boss','tab-sales','tab-objection','tab-qa'];
+  var firstMatch = null;
+  var firstMatchTab = null;
+  tabs.forEach(function(tabId) {
+    var tabEl = document.getElementById(tabId);
+    if (!tabEl) return;
+    var tabName = tabId.replace('tab-','');
+    // Search branches in this tab
+    tabEl.querySelectorAll('.branch').forEach(function(b) {
+      var text = b.textContent.toLowerCase();
+      var match = text.includes(q);
+      b.style.display = match ? '' : 'none';
+      if (match) {
+        // Auto-expand matching branch
+        if (!b.classList.contains('open')) b.classList.add('open');
+        if (!firstMatch) { firstMatch = b; firstMatchTab = tabName; }
+      }
+    });
   });
-  // Also search QA branches
-  document.querySelectorAll('.sub-branch').forEach(function(s) {
-    if (!q) { s.style.display = ''; return; }
-    var text = s.textContent.toLowerCase();
-    s.style.display = text.includes(q) ? '' : 'none';
-  });
+  // Switch to the tab with the first match and scroll to it
+  if (firstMatch && firstMatchTab) {
+    switchTab(firstMatchTab);
+    setTimeout(function() {
+      firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      firstMatch.style.boxShadow = '0 0 20px rgba(100,180,255,0.4)';
+      setTimeout(function() { firstMatch.style.boxShadow = ''; }, 2000);
+    }, 200);
+  }
 }
 
 // 課程超連結對照表（五堂主課）
