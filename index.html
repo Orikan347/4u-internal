@@ -5,6 +5,86 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>4U 人際教育學院 — 顧問商談銷售路徑</title>
 <style>
+  /* Password Gate */
+  #password-gate {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #0a0e1a;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+  #password-gate.hidden { display: none; }
+  .pw-card {
+    background: linear-gradient(135deg, rgba(100, 180, 255, 0.06), rgba(167, 139, 250, 0.06));
+    border: 1px solid rgba(100, 180, 255, 0.2);
+    border-radius: 20px;
+    padding: 48px 40px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+  }
+  .pw-card h2 {
+    font-size: 22px;
+    font-weight: 900;
+    background: linear-gradient(90deg, #64b4ff, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .pw-card p {
+    font-size: 14px;
+    color: #8899bb;
+    margin-bottom: 28px;
+  }
+  .pw-input {
+    width: 100%;
+    padding: 14px 18px;
+    border: 2px solid rgba(100, 180, 255, 0.2);
+    border-radius: 12px;
+    background: rgba(0,0,0,0.3);
+    color: #e0e6f0;
+    font-size: 16px;
+    font-family: 'Noto Sans TC', sans-serif;
+    text-align: center;
+    letter-spacing: 3px;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+  .pw-input:focus { border-color: #64b4ff; }
+  .pw-input.error { border-color: #ef4444; animation: shake 0.4s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+  .pw-btn {
+    margin-top: 16px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1e3a5f, #2a1f4e);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Noto Sans TC', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .pw-btn:hover { filter: brightness(1.2); }
+  .pw-error-msg {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #ef4444;
+    min-height: 20px;
+  }
+  #main-app { display: none; }
+  #main-app.visible { display: block; }
+</style>
+<style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -506,6 +586,18 @@
 </head>
 <body>
 
+<!-- Password Gate -->
+<div id="password-gate">
+  <div class="pw-card">
+    <h2>4U 人際教育學院</h2>
+    <p>教育顧問內部系統 — 請輸入密碼</p>
+    <input type="password" class="pw-input" id="pwInput" placeholder="請輸入密碼" onkeydown="if(event.key==='Enter')checkPw()">
+    <button class="pw-btn" onclick="checkPw()">進入系統</button>
+    <div class="pw-error-msg" id="pwError"></div>
+  </div>
+</div>
+
+<div id="main-app">
 <div class="header">
   <h1>4U 人際教育學院 — 顧問商談銷售路徑</h1>
   <p>教育顧問專用 ｜ 點擊分支可展開回話腳本</p>
@@ -1459,5 +1551,31 @@ document.querySelectorAll('.course-badge').forEach(function(el) {
 });
 </script>
 
+</div><!-- end main-app -->
+
+<script>
+// Simple hash check — not military-grade but blocks casual access
+function hashStr(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return h;}
+var PW_HASH = 105765920; // hash of 'orikan'
+function checkPw(){
+  var inp=document.getElementById('pwInput');
+  var err=document.getElementById('pwError');
+  if(hashStr(inp.value)===PW_HASH){
+    document.getElementById('password-gate').classList.add('hidden');
+    document.getElementById('main-app').classList.add('visible');
+    sessionStorage.setItem('4u_auth','1');
+    err.textContent='';
+  } else {
+    inp.classList.add('error');
+    err.textContent='密碼錯誤，請重新輸入';
+    setTimeout(function(){inp.classList.remove('error');},400);
+  }
+}
+// Auto-login if already authenticated in this session
+if(sessionStorage.getItem('4u_auth')==='1'){
+  document.getElementById('password-gate').classList.add('hidden');
+  document.getElementById('main-app').classList.add('visible');
+}
+</script>
 </body>
 </html>
