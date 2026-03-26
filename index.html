@@ -676,15 +676,80 @@
 <!-- Quick Reference Flow Chart -->
 <div style="max-width:900px;margin:0 auto 20px;padding:0 20px">
   <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 24px">
-    <div style="font-size:14px;font-weight:700;color:#64b4ff;letter-spacing:2px;margin-bottom:12px">⚡ 痛點 → 課程 速查</div>
+    <div style="font-size:14px;font-weight:700;color:#64b4ff;letter-spacing:2px;margin-bottom:12px">⚡ 痛點 → 課程 速查（點擊展開對話技巧）</div>
     <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px 12px;font-size:13px;align-items:center">
-      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-flow')">客人不夠多</div><div style="color:#445566">→</div><div><span class="course-badge badge-flow" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-flow')">流量磁鐵</span></div>
-      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">成交率低</div><div style="color:#445566">→</div><div><span class="course-badge badge-close" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">成交地圖</span> <span class="course-badge badge-heart" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">直指人心</span></div>
-      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('sales','sales-2')">忙但沒成果</div><div style="color:#445566">→</div><div><span class="course-badge badge-eff" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('sales','sales-2')">極致效率</span></div>
-      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-2')">溝通表達差</div><div style="color:#445566">→</div><div><span class="course-badge badge-talk" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-2')">言之有物</span></div>
-      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">看不懂客戶</div><div style="color:#445566">→</div><div><span class="course-badge badge-heart" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-3','sub-close')">直指人心</span></div>
-      <div style="color:#99aabb;cursor:pointer" onclick="goToBranch('boss','boss-1')">沒有動力 / 意願低</div><div style="color:#445566">→</div><div><span class="course-badge badge-energy" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-1')">影響力</span> <span class="course-badge badge-career" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="goToBranch('boss','boss-1')">生涯運數</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="toggleQuickScript('qs-flow')">客人不夠多</div><div style="color:#445566">→</div><div><span class="course-badge badge-flow" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="toggleQuickScript('qs-flow')">流量磁鐵</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="toggleQuickScript('qs-close')">成交率低</div><div style="color:#445566">→</div><div><span class="course-badge badge-close" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="toggleQuickScript('qs-close')">成交地圖</span> <span class="course-badge badge-heart" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="toggleQuickScript('qs-heart')">直指人心</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="toggleQuickScript('qs-eff')">忙但沒成果</div><div style="color:#445566">→</div><div><span class="course-badge badge-eff" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="toggleQuickScript('qs-eff')">極致效率</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="toggleQuickScript('qs-talk')">溝通表達差</div><div style="color:#445566">→</div><div><span class="course-badge badge-talk" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="toggleQuickScript('qs-talk')">言之有物</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="toggleQuickScript('qs-heart')">看不懂客戶</div><div style="color:#445566">→</div><div><span class="course-badge badge-heart" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="toggleQuickScript('qs-heart')">直指人心</span></div>
+      <div style="color:#99aabb;cursor:pointer" onclick="toggleQuickScript('qs-energy')">沒有動力 / 意願低</div><div style="color:#445566">→</div><div><span class="course-badge badge-energy" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="toggleQuickScript('qs-energy')">影響力</span> <span class="course-badge badge-career" style="font-size:12px;padding:3px 10px;cursor:pointer" onclick="toggleQuickScript('qs-career')">生涯運數</span></div>
     </div>
+
+    <!-- Expandable quick scripts -->
+    <div id="qs-flow" class="qs-panel" style="display:none">
+      <div class="script" style="border-color:#3b82f6;margin-top:14px">
+        <div class="script-label" style="color:#60a5fa">流量磁鐵 — 對話技巧</div>
+        「所以你想要一套系統幫你持續產生新名單，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「泰欣老師有個核心公式：<strong>業績 = 名單 × 成交率</strong>。成熟業務的成交率最多差 2 倍，但名單量可以是無限倍。『流量磁鐵』用<strong>天地人網</strong>四大打法教你系統性地開發名單——線上線下互相導流、社群經營加個人品牌、實體場景和人脈串聯。還教<strong>客戶管理四部曲：存→記→分→細</strong>，讓每一個名單都不會漏掉。有學員掌握天地人網之後，90 天內流量突破 3,000 萬，薪資成長 3 倍。」
+      </div>
+    </div>
+
+    <div id="qs-close" class="qs-panel" style="display:none">
+      <div class="script" style="border-color:#ef4444;margin-top:14px">
+        <div class="script-label" style="color:#f87171">成交地圖 — 對話技巧</div>
+        「所以你想要一套流程讓你知道每一步該怎麼做，最後能有效成交客戶，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「『成交地圖』把成交流程拆成<strong>四大關卡</strong>——<strong>第一印象</strong>用『具體事實 + 正面特質』建立信任，<strong>五大核心問題</strong>挖掘真正需求，<strong>MBAF 產品介紹法</strong>精準傳達價值（先讓對方點頭、再講利益、優勢、特性加故事），最後<strong>成交 365</strong> 引導成交含完整異議處理。每一關都有公式，照著做就行。有一位保險業的張小姐，上完課照著做，三個月衝上新人第一名。」
+      </div>
+    </div>
+
+    <div id="qs-heart" class="qs-panel" style="display:none">
+      <div class="script" style="border-color:#8b5cf6;margin-top:14px">
+        <div class="script-label" style="color:#a78bfa">直指人心 — 對話技巧</div>
+        「所以你想要能夠快速看懂客戶是什麼類型的人，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「『直指人心』教<strong>DISC 四大行為模式</strong>——D 掌控型要結果不廢話、I 影響型要感覺不無聊、S 穩定型要安全不麻煩、C 分析型要數據不忽悠。透過觀察<strong>外貌舉止、聲音語調</strong>快速判斷類型，然後直接套回成交地圖四大關卡。同一個產品，不同的人用不同方式說。有一位保險業的林先生，學會看懂人性後，今年實收保費直接破億。」
+      </div>
+    </div>
+
+    <div id="qs-eff" class="qs-panel" style="display:none">
+      <div class="script" style="border-color:#10b981;margin-top:14px">
+        <div class="script-label" style="color:#34d399">極致效率 — 對話技巧</div>
+        「所以你想要一套方法讓你用更少時間做到更多業績，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「『極致效率』教四大核心系統：<strong>①效率至上通訊錄</strong>——10 秒查 5 年接觸史、1 分鐘匯入 5,000 筆客戶、一鍵發送 1,400+ 則簡訊。<strong>②名單建立四部曲：存→記→分→細</strong>。<strong>③時間碼 + 行事曆系統</strong>——每月省下 30+ 小時。<strong>④智能 AI 成交助手</strong>——一秒存進手機、自動配好行事曆。有學員上完課直接省下每月 36,000 元的秘書成本。還有學員說，按一個鍵，很久沒聯絡的客戶自己找上門談合作。」
+      </div>
+    </div>
+
+    <div id="qs-talk" class="qs-panel" style="display:none">
+      <div class="script" style="border-color:#f97316;margin-top:14px">
+        <div class="script-label" style="color:#fb923c">言之有物 — 對話技巧</div>
+        「所以你想要團隊的溝通能力能夠提升，讓大家更有效地表達，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「『言之有物』解決『心裡想的是 A，說出來是 B，對方理解成 C』的問題。核心是<strong>表達力公式：能量 × 邏輯 × 格局</strong>。能量用 DISC 四種風格——力量、幽默、溫度、真實。課程教<strong>三種角色溝通策略</strong>——向上溝通、平級溝通、向下溝通。基層要尊嚴、中層要發展、高層要未來。搭配<strong>30 秒電梯簡報</strong>（挖、補、報、約）和<strong>克服恐懼三部曲 YPD</strong>。有學員說這是上過唯一一堂招招落地、馬上學了就能馬上用的課。」
+      </div>
+    </div>
+
+    <div id="qs-energy" class="qs-panel" style="display:none">
+      <div class="script" style="border-color:#ec4899;margin-top:14px">
+        <div class="script-label" style="color:#f472b6">影響力 — 對話技巧</div>
+        「所以你覺得夥伴不是不會做，是沒有被點燃，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「『影響力』專門解決<strong>內在驅動力</strong>的問題。這堂課教的是怎麼透過自我覺察和能量管理，找到自己內心真正想要的東西，把那股力量釋放出來。當一個人的影響力被啟動了，他不只自己會動起來，還會帶動身邊的人一起改變。對老闆來說，這就是團隊文化開始轉變的起點。」
+      </div>
+    </div>
+
+    <div id="qs-career" class="qs-panel" style="display:none">
+      <div class="script" style="border-color:#06b6d4;margin-top:14px">
+        <div class="script-label" style="color:#22d3ee">生涯運數 — 對話技巧</div>
+        「所以你覺得夥伴不知道自己適合做什麼，找不到方向，對嗎？」<br><br>
+        <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+        「『生涯運數』解決的是<strong>自我定位</strong>的問題。透過系統化的方式，幫助每個人找到自己的天賦和定位。當一個人清楚知道自己為什麼要做這份工作，他的意願就不再需要外力推動了。這就是從『被動工作』變成『主動選擇』的關鍵。」
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1559,6 +1624,20 @@ function updateProgress() {
     tabBoss.classList.add('content-locked');
     tabSales.classList.remove('content-unlocked');
     tabSales.classList.add('content-locked');
+  }
+}
+
+// Quick script toggle in speed reference
+function toggleQuickScript(id) {
+  var panel = document.getElementById(id);
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  // Close all panels first
+  document.querySelectorAll('.qs-panel').forEach(function(p) { p.style.display = 'none'; });
+  // Toggle the clicked one
+  if (!isOpen) {
+    panel.style.display = 'block';
+    setTimeout(function() { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
   }
 }
 
