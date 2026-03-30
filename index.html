@@ -594,6 +594,76 @@
     color: #556677;
     border-top: 1px solid rgba(255,255,255,0.05);
   }
+
+  /* DISC Selector */
+  .disc-bar {
+    max-width: 900px;
+    margin: 0 auto 12px;
+    padding: 0 20px;
+  }
+  .disc-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(100,180,255,0.15);
+    border-radius: 14px;
+    padding: 12px 18px;
+    flex-wrap: wrap;
+  }
+  .disc-selector-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #8899bb;
+    letter-spacing: 1px;
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+  .disc-btn {
+    padding: 5px 16px;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05);
+    color: #c0cce0;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+  .disc-btn:hover { background: rgba(255,255,255,0.1); }
+  .disc-btn[data-type="d"].active { background: rgba(239,68,68,0.2); border-color: #ef4444; color: #f87171; }
+  .disc-btn[data-type="i"].active { background: rgba(251,191,36,0.2); border-color: #fbbf24; color: #fcd34d; }
+  .disc-btn[data-type="s"].active { background: rgba(34,197,94,0.2); border-color: #22c55e; color: #4ade80; }
+  .disc-btn[data-type="c"].active { background: rgba(100,180,255,0.2); border-color: #64b4ff; color: #93c5fd; }
+  .disc-hint {
+    font-size: 11px;
+    color: #445566;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .disc-tips {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .disc-tip {
+    font-size: 11px;
+    color: #667788;
+    padding: 3px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+  }
+  .disc-tip strong { font-weight: 700; }
+  .disc-tip.d strong { color: #f87171; }
+  .disc-tip.i strong { color: #fcd34d; }
+  .disc-tip.s strong { color: #4ade80; }
+  .disc-tip.c strong { color: #93c5fd; }
+
+  /* DISC script variants — only show active type */
+  .disc-v { display: none; }
+  .disc-v.disc-show { display: block; }
 </style>
 </head>
 <body>
@@ -781,6 +851,24 @@
     oninput="searchBranches(this.value)">
 </div>
 
+<!-- DISC Selector -->
+<div class="disc-bar">
+  <div class="disc-selector">
+    <span class="disc-selector-label">客戶 DISC 類型：</span>
+    <button class="disc-btn" data-type="d" onclick="selectDisc('d')">D 支配型</button>
+    <button class="disc-btn" data-type="i" onclick="selectDisc('i')">I 影響型</button>
+    <button class="disc-btn" data-type="s" onclick="selectDisc('s')">S 穩定型</button>
+    <button class="disc-btn" data-type="c" onclick="selectDisc('c')">C 謹慎型</button>
+    <span class="disc-hint">未選擇 = 公版腳本</span>
+  </div>
+  <div class="disc-tips">
+    <span class="disc-tip d"><strong>D</strong> 語速快、問結果、坐姿前傾、直接問價格</span>
+    <span class="disc-tip i"><strong>I</strong> 表情豐富、愛聊天、有肢體接觸、問感受</span>
+    <span class="disc-tip s"><strong>S</strong> 語調平穩、猶豫較多、問別人怎麼做、怕麻煩</span>
+    <span class="disc-tip c"><strong>C</strong> 問細節、要數據、說話有條理、決策慢</span>
+  </div>
+</div>
+
 <div class="content" id="mainContent">
 
 <!-- ==================== TAB 1: 老闆 ==================== -->
@@ -789,7 +877,11 @@
   <div class="opening">
     <div class="opening-label">開場診斷問句</div>
     <div class="opening-text">
-      「老闆，想請教一下，您覺得目前團隊最大的挑戰，是夥伴們<strong>不想做</strong>、<strong>不會做</strong>、還是<strong>做不好</strong>？」
+      <div class="disc-v disc-show" data-disc="default">「老闆，想請教一下，您覺得目前團隊最大的挑戰，是夥伴們<strong>不想做</strong>、<strong>不會做</strong>、還是<strong>做不好</strong>？」</div>
+      <div class="disc-v" data-disc="d">「老闆，直接問——團隊現在最卡的是哪一塊：<strong>不想做</strong>、<strong>不會做</strong>、還是<strong>做不好</strong>？」</div>
+      <div class="disc-v" data-disc="i">「老闆，我想先了解一下您的狀況——您覺得目前團隊最大的挑戰，是夥伴們<strong>不想做</strong>、<strong>不會做</strong>、還是<strong>做不好</strong>？聊完我們一起想辦法！」</div>
+      <div class="disc-v" data-disc="s">「老闆，不急，我們慢慢聊。我想先了解一下您現在的狀況——您覺得目前團隊讓您比較困擾的，是夥伴們<strong>提不起動力</strong>、<strong>能力還沒到位</strong>、還是<strong>做了但效果不理想</strong>？」</div>
+      <div class="disc-v" data-disc="c">「老闆，根據我們長期服務企業的觀察，團隊問題通常可以歸類為三大面向——<strong>意願不足</strong>、<strong>能力不足</strong>、或<strong>方法不對</strong>。您評估一下，目前團隊比較偏哪個面向？」</div>
     </div>
   </div>
 
@@ -813,12 +905,32 @@
       <div class="script-oneliner">💡 一句話版本：「意願問題的根源通常是三個方面——看不到成就感、內在動力不足、或找不到定位。」</div>
       <div class="script">
         <div class="script-label">回話腳本</div>
-        「老闆我非常理解，意願問題確實是最讓人頭痛的，因為技術可以教，但動力不足的人你推都推不動。<br><br>
+        <div class="disc-v disc-show" data-disc="default">「老闆我非常理解，意願問題確實是最讓人頭痛的，因為技術可以教，但動力不足的人你推都推不動。<br><br>
         其實根據我們服務那麼多企業的經驗，意願問題的根源通常來自三個方面——<br><br>
         <strong>第一，看不到成就感。</strong>夥伴其實想做好，但因為沒有一套系統，每次做都沒有結果，久了就放棄了。這時候只要給他一套做得出成績的方法，成就感來了，動力自然就回來了。<br><br>
         <strong>第二，內在驅動力不足。</strong>夥伴覺得生活無聊、工作無趣、找不到樂趣，整個人的能量就是提不起來。這不是技巧問題，是內心的火沒有被點燃。<br><br>
         <strong>第三，找不到自己的定位。</strong>不曉得自己要什麼，人生就會迷惘，做什麼都沒有方向感。<br><br>
-        那我想請問您，聽起來您覺得夥伴比較是<strong>『看不到成就感』</strong>、<strong>『內在動力不足』</strong>、還是<strong>『找不到自己的定位』</strong>？」
+        那我想請問您，聽起來您覺得夥伴比較是<strong>『看不到成就感』</strong>、<strong>『內在動力不足』</strong>、還是<strong>『找不到自己的定位』</strong>？」</div>
+        <div class="disc-v" data-disc="d">「意願問題就三個根源，我直接跟您說：<br><br>
+        <strong>一、沒有成果，所以放棄了。</strong>夥伴不是不想做，是做了沒有結果。給他一套能做出業績的系統，成就感回來，動力自然跟著回來。<br><br>
+        <strong>二、內心的火還沒點燃。</strong>外部激勵都是短效的，根本問題沒解決，獎金再高也撐不過三個月。<br><br>
+        <strong>三、找不到自己的位置。</strong>不知道為什麼要做這份工作，什麼都提不起勁。<br><br>
+        您的團隊比較是哪一個？」</div>
+        <div class="disc-v" data-disc="i">「老闆，這個問題我聽到好多次了，真的是很多老闆心裡最痛的一塊。意願問題通常有三個根源：<br><br>
+        <strong>第一，做了沒有成果，久了就心灰意冷了。</strong>其實夥伴心裡是想做好的，只是沒有一套方法讓他看到改變。成就感一旦回來，那個人整個都不一樣了！<br><br>
+        <strong>第二，內心的火還沒有被點燃。</strong>有些人就是還沒找到那個讓他願意拼命的理由，一旦找到了，你根本不用催他。<br><br>
+        <strong>第三，找不到自己的方向。</strong>不知道自己要去哪裡，做什麼都覺得沒意思。<br><br>
+        老闆，您覺得您的夥伴比較像哪一種狀況呢？」</div>
+        <div class="disc-v" data-disc="s">「老闆，您說的這個我完全理解，帶團隊本來就不容易，意願的問題是很多老闆心裡放不下的一塊。我們不用急，先一起釐清一下根源在哪裡：<br><br>
+        <strong>第一，可能是夥伴還沒有找到成就感。</strong>他不是不想做，是做了沒有看到改變，慢慢就沒信心了。只要給他一套做得出成績的方法，信心回來了，動力自然也會回來。<br><br>
+        <strong>第二，可能是內在的驅動力還沒建立起來。</strong>每個人心裡都有一把火，只是還沒有找到開關，這不是他的問題，是還沒有遇到對的方法。<br><br>
+        <strong>第三，可能是方向還不夠清楚。</strong>不確定自己要去哪裡，做什麼都會覺得沒有意義，這很正常。<br><br>
+        老闆，您感覺您的夥伴比較偏哪一個方向呢？不用想太多，說說您的直覺就好。」</div>
+        <div class="disc-v" data-disc="c">「老闆，意願問題表面上看起來是態度問題，但根據我們服務那麼多企業的經驗，底層通常有三個根源：<br><br>
+        <strong>第一，行為強化機制失效。</strong>夥伴沒有從行動中得到正向回饋——做了沒有看到結果，神經系統自然會傾向放棄這個行為。解法是給他一套做得出成績的系統，讓正向回饋持續產生。<br><br>
+        <strong>第二，內在動機尚未建立。</strong>外在激勵——獎金、頭銜——是短效的，長期來看效果有限。真正持久的動力必須來自內在，這需要系統性地找到驅動力的根源。<br><br>
+        <strong>第三，目標與自我認同未對齊。</strong>夥伴不清楚自己是誰、要去哪裡，行動就缺乏方向感。這不是努力程度的問題，是認知層面的問題。<br><br>
+        根據您的觀察，這三個根源裡，哪一個在您的團隊裡比重最高？」</div>
       </div>
       <div>
         <span class="course-badge badge-close">→ 成交地圖</span>
@@ -833,11 +945,29 @@
           <div class="course-detail-body"><div class="course-detail-inner">
             <div class="script" style="border-color:#ef4444">
               <div class="script-label" style="color:#f87171">成交地圖 — 怎麼跟客戶說</div>
-              「所以您希望夥伴能有一套系統，讓他們做了就看到成果，成就感自然回來，對嗎？」<br><br>
+              <div class="disc-v disc-show" data-disc="default">「所以您希望夥伴能有一套系統，讓他們做了就看到成果，成就感自然回來，對嗎？」<br><br>
               <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
               「想像一下，您的夥伴以後每次面對客戶都不再慌張，心裡非常清楚：現在在哪一關、下一步該做什麼。客戶丟出任何問題，他都有一套應對方式。第一個月他就成交了好幾個以前搞不定的客戶，臉上開始有笑容了，主動跟你說『老闆我覺得這份工作越來越有趣了』。這就是有系統之後帶來的改變。<br><br>
               跟一般只教話術的銷售課不同，『成交地圖』把整個成交流程拆成<strong>四大關卡</strong>——第一印象、五大核心問題、MBAF 產品介紹法、成交 365。每一關都有明確的步驟和公式，回去直接複製給團隊。有一位保險業的張小姐，上完課照著這套系統做，三個月衝上新人第一名。」<br><br>
-              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+              <div class="disc-v" data-disc="d">「所以您要的是——夥伴做了就看得到成果，成就感回來，動力自然跟著回來，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我跟您說一下。『成交地圖』把成交拆成四關——<strong>第一印象、五大核心問題、MBAF 產品介紹法、成交 365</strong>。每一關有公式、有步驟，拿回去直接給團隊用。不靠感覺，靠系統。保險業的張小姐照著做，三個月新人第一名。<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="i">「所以您希望夥伴做了就能看到成果，成就感回來了，整個人的狀態都不一樣，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「老闆，想像一下這個畫面——您的夥伴某天突然跑來跟您說：『老闆！我今天成交了一個以前搞不定的客戶！』臉上是那種真的很開心的表情。這不是因為他突然變厲害了，是因為他終於有一套方法知道每一步該怎麼做。<br><br>
+              『成交地圖』把整個成交拆成四大關卡——<strong>第一印象、五大核心問題、MBAF 產品介紹法、成交 365</strong>。每一關有公式、有步驟，夥伴照著跑就能有結果。有一位保險業的張小姐，上完課照著這套系統做，三個月就衝上新人第一名，她自己都說沒想到可以這麼快！<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="s">「所以您希望夥伴能夠做了就看到成果，有了成就感，動力自然就會回來，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我們來看一下有什麼方向。您可以想像一下——您的夥伴以後每次面對客戶，心裡是踏實的，因為他清楚知道現在在哪一步、下一步該怎麼走。不用再慌張、不用再靠感覺，因為每一關都有方法可以依循。第一個月，他就成交了以前搞不定的客戶，跑來跟您說『老闆，我最近覺得越來越有方向了』。<br><br>
+              『成交地圖』把成交流程拆成四大關卡——<strong>第一印象、五大核心問題、MBAF 產品介紹法、成交 365</strong>，每一關都有明確的步驟，讓夥伴有所依循。有一位保險業的張小姐，照著這套慢慢跑，三個月就衝上新人第一名。<br><br>
+              您覺得這個方向適合您的團隊嗎？」</div>
+              <div class="disc-v" data-disc="c">「所以您認為夥伴需要的是一套能產生正向回饋的銷售系統，讓成就感持續強化行為，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我說明一下。『成交地圖』把整個成交流程系統化為四大關卡——<strong>第一印象</strong>用「具體事實 + 正面特質」建立信任基礎、<strong>五大核心問題</strong>精準挖掘需求、<strong>MBAF 產品介紹法</strong>結構化傳達價值、<strong>成交 365</strong> 含完整的異議處理邏輯。每一關都有明確的操作步驟和判斷標準，夥伴照著執行就能產生可預期的結果。有一位保險業的張小姐，按照這套系統執行，三個月達到新人第一名的成績。<br><br>
+              您覺得這個方向符合您的需求嗎？」</div>
             </div>
           </div></div>
         </div>
@@ -847,11 +977,29 @@
           <div class="course-detail-body"><div class="course-detail-inner">
             <div class="script" style="border-color:#f97316">
               <div class="script-label" style="color:#fb923c">言之有物 — 怎麼跟客戶說</div>
-              「所以您希望夥伴能把話說清楚、說到位，讓客戶和同事都聽得進去，對嗎？」<br><br>
+              <div class="disc-v disc-show" data-disc="default">「所以您希望夥伴能把話說清楚、說到位，讓客戶和同事都聽得進去，對嗎？」<br><br>
               <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
               「想像一下，您的夥伴以後開會發言條理清晰、跟客戶提案重點明確，同事開始說『他最近講話不一樣了耶』。他自己也覺得，原來把話說好這件事是有方法的，不是天生的。這份自信會擴散到他工作的每一個面向。<br><br>
               跟一般只教口才的課程不同，『言之有物』教的是<strong>表達力公式：能量 × 邏輯 × 格局</strong>，加上<strong>三種角色溝通策略</strong>——向上、平級、向下溝通都有不同方法。還有<strong>30 秒電梯簡報</strong>和<strong>克服恐懼三部曲 YPD</strong>。學員 l.fun_666 說這堂課『招招落地馬上能用』，Tracy（行銷業）說學會了『用策略取代蠻力』。」<br><br>
-              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+              <div class="disc-v" data-disc="d">「所以您要的是——夥伴說話有條理、說得到位，讓人聽得進去，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我跟您說一下。『言之有物』教三件事：<strong>表達力公式（能量 × 邏輯 × 格局）</strong>、<strong>三種角色溝通策略</strong>（向上、平級、向下）、<strong>30 秒電梯簡報</strong>。招招落地，上完馬上能用。<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="i">「所以您希望夥伴說出來的話讓人聽得進去、說得到位，說完了客戶點頭、同事也服氣，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「老闆，想像一下——下次開會，您的夥伴站起來說話，台下的人不再滑手機了，大家都在認真聽。說完之後有人主動問：『你剛才說的那個，可以再說一次嗎？』這種感覺，是可以透過學習達到的。<br><br>
+              『言之有物』教的是<strong>表達力公式：能量 × 邏輯 × 格局</strong>，還有向上、平級、向下三種溝通策略，每一種說話方式都不一樣。很多學員說這堂課『招招落地，馬上就能用』，一點都不是理論！<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="s">「所以您希望夥伴說話能讓人覺得舒服、聽得進去，大家溝通順了，整個氛圍也會不一樣，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我們來看一下。您可以想像一下——您的夥伴以後開會，說話有條理、有溫度，同事覺得跟他合作很舒服，客戶也覺得被尊重。慢慢地，大家都開始主動找他，因為跟他說話感覺很安心。<br><br>
+              『言之有物』教的是<strong>表達力公式：能量 × 邏輯 × 格局</strong>，還有不同角色的溝通策略——向上、平級、向下說話的方式都不一樣。課程是很實用的，學員說上完就能馬上用。<br><br>
+              您覺得這個方向適合嗎？」</div>
+              <div class="disc-v" data-disc="c">「所以您評估夥伴需要的是一套結構化的表達系統，讓溝通更有效率、更有說服力，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我說明一下。『言之有物』建立在<strong>表達力公式：能量 × 邏輯 × 格局</strong>的框架上。課程涵蓋三個核心模組：<strong>向上溝通策略</strong>（如何讓決策者接受您的想法）、<strong>平級溝通策略</strong>（如何在同儕中建立影響力）、<strong>向下溝通策略</strong>（如何讓團隊有效執行）。搭配 <strong>30 秒電梯簡報</strong>的結構，讓夥伴在最短時間內精準傳達重點。這套課程的特點是落地性高，有學員反映上完課就能立即應用。<br><br>
+              您覺得這個方向符合您的需求嗎？」</div>
             </div>
           </div></div>
         </div>
@@ -861,11 +1009,29 @@
           <div class="course-detail-body"><div class="course-detail-inner">
             <div class="script" style="border-color:#ec4899">
               <div class="script-label" style="color:#f472b6">影響力 — 怎麼跟客戶說</div>
-              「所以您覺得夥伴不是不會做，是內心的火沒有被點燃，對嗎？」<br><br>
+              <div class="disc-v disc-show" data-disc="default">「所以您覺得夥伴不是不會做，是內心的火沒有被點燃，對嗎？」<br><br>
               <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
               「想像一下，您的夥伴有一天突然眼神不一樣了——他不再是被推著走，而是自己主動找事做。開會的時候他第一個舉手發言，下班後他還在研究明天的客戶。同事問他怎麼了，他說『我終於知道我在追求什麼了』。整個團隊的氣氛從那天開始改變。<br><br>
               跟一般靠喊口號的激勵課不同，『影響力』教的是怎麼透過<strong>自我覺察和能量管理</strong>，找到內心真正想要的東西，把那股力量釋放出來。當一個人的影響力被啟動了，他不只自己會動起來，還會帶動身邊的人一起改變。對老闆來說，這就是團隊文化開始轉變的起點。」<br><br>
-              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+              <div class="disc-v" data-disc="d">「所以您要的是——夥伴內在的能量起來，不用您一直推，他自己就會動，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我跟您說一下。『影響力』不是靠喊口號，教的是<strong>自我覺察和能量管理</strong>——讓夥伴找到他自己內心真正要的東西。當一個人知道他在追求什麼，他說出來的話、做出來的事，整個狀態就是不一樣的。對您來說，這就是團隊文化開始轉變的起點。<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="i">「所以您希望夥伴的內在能量被點燃，自己就會動起來，不用您一直催，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「老闆，想像一下這個畫面——有一天您走進辦公室，那個以前總是一臉提不起勁的夥伴，今天突然主動跟客戶熱情打招呼，還自己整理了新的客戶名單放在桌上。不是因為被罵了、不是因為有獎金，是因為他終於找到那個讓他想拼的理由了。整個團隊的氣氛從那天開始都不一樣了！<br><br>
+              『影響力』教的是透過<strong>自我覺察和能量管理</strong>，幫每個人找到內心真正的驅動力。影響力不是靠嗓門大，是靠內在的力量。當一個人狀態好了，周圍的人都能感受到！<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="s">「所以您希望夥伴慢慢找到自己內在的動力，不用您一直在後面推，他自己就能穩定前進，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我們來看一下。您可以想像一下——有一天，那個以前讓您擔心的夥伴，開始主動做事了，不是被逼的，是他自己找到了想做的理由。他來跟您說：『老闆，我最近狀態好很多，我知道自己在追求什麼了。』那種感覺，對您來說應該很安心吧。<br><br>
+              『影響力』透過<strong>自我覺察和能量管理</strong>，幫每個人慢慢找到內心真正的驅動力，一步一步來，不急。當一個人狀態穩了，整個團隊的氣氛都會跟著改變。<br><br>
+              您覺得這個方向適合嗎？」</div>
+              <div class="disc-v" data-disc="c">「所以您評估問題根源在於夥伴的內在動機系統尚未建立，需要從根本解決，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我說明一下。從行為科學的角度來看，外在激勵的效果是遞減的，長期來說內在動機才是持續行為的根本。『影響力』透過<strong>自我覺察和能量管理</strong>的系統化訓練，幫助夥伴建立內在驅動機制。當一個人的內在動機被激活，他的行為模式會從被動執行轉為主動驅動——這對整個團隊的文化和氛圍都會有可量化的正向影響。<br><br>
+              您覺得這個方向符合您的需求嗎？」</div>
             </div>
           </div></div>
         </div>
@@ -875,11 +1041,29 @@
           <div class="course-detail-body"><div class="course-detail-inner">
             <div class="script" style="border-color:#06b6d4">
               <div class="script-label" style="color:#22d3ee">生涯運數 — 怎麼跟客戶說</div>
-              「所以您覺得夥伴是不知道自己要什麼，所以做什麼都提不起勁，對嗎？」<br><br>
+              <div class="disc-v disc-show" data-disc="default">「所以您覺得夥伴是不知道自己要什麼，所以做什麼都提不起勁，對嗎？」<br><br>
               <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
               「想像一下，您的夥伴有一天跑來跟您說：『老闆，我終於知道自己為什麼要做這份工作了。』他不再迷惘、不再抱怨，因為他找到了自己的天賦和定位。他知道這條路是自己主動選擇的，不是被迫的。從那天開始，你不需要推他，他自己就會往前走。<br><br>
               跟一般只做性格測驗的職涯課程不同，『生涯運數』透過系統化的方式，幫助每個人找到自己的天賦和定位。當一個人清楚知道自己為什麼在這裡，意願就不再需要外力推動了。這就是從『被動工作』變成『主動選擇』的關鍵。」<br><br>
-              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+              <div class="disc-v" data-disc="d">「所以您要的是——夥伴找到自己的方向，自己走，不用您推，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我跟您說一下。『生涯運數』系統化幫每個人找天賦和定位。認知對了，態度就對了，不用再靠外力。<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="i">「所以您希望夥伴找到自己的方向，知道自己為什麼要做這份工作，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「老闆，想像一下——您的夥伴有一天突然跑來跟您說：『老闆，我之前一直覺得工作就是工作，但現在我覺得這是我真的想做的事！』您聽到這句話，心裡那種感動是無法用言語形容的。<br><br>
+              『生涯運數』幫每個人系統性地找到天賦和定位。當夥伴清楚知道自己為什麼在這裡，他就不再是被動工作，而是主動選擇，整個狀態都不一樣了！<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="s">「所以您希望夥伴能找到自己的方向和定位，心裡踏實了，做起事來也會更穩定，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我們來看一下。您可以想像一下——您的夥伴有一天跑來跟您說：『老闆，我終於知道自己為什麼要在這裡了。』從那天開始，他不再需要您一直提醒，因為他自己有方向了。這種改變，是很深層的，也是最穩固的。<br><br>
+              『生涯運數』用系統化的方式，陪每個人找到自己的天賦和定位，步驟很清楚，不會讓人覺得茫然。<br><br>
+              您覺得這個方向適合嗎？」</div>
+              <div class="disc-v" data-disc="c">「所以您評估問題根源在於夥伴的目標與自我認同尚未對齊，需要從認知層面根本解決，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我說明一下。『生涯運數』用系統化的方法協助每個人找到天賦和定位，這不是感性的職涯輔導，而是有結構的自我分析過程。當夥伴清楚自己的定位，他的行為動機就會從外在驅動轉為內在驅動，這個轉變是根本性的，效果也最持久。<br><br>
+              您覺得這個方向符合您的需求嗎？」</div>
             </div>
           </div></div>
         </div>
@@ -908,12 +1092,32 @@
       <div class="script-oneliner">💡 一句話版本：「80% 的態度問題其實是三方面的問題——說話表達、內在驅動力、自我定位。」</div>
       <div class="script">
         <div class="script-label">回話腳本</div>
-        「老闆我完全理解，態度問題真的是最讓管理者頭痛的。<br><br>
+        <div class="disc-v disc-show" data-disc="default">「老闆我完全理解，態度問題真的是最讓管理者頭痛的。<br><br>
         其實 80% 的所謂『態度不好』，有可能是三方面的問題——<br><br>
         <strong>第一，說話表達。</strong>同樣一句話，如果音調、肢體、能量不對，聽起來就是在吵架；但如果表達對了，同一句話就能變成在協商。<br><br>
         <strong>第二，內在驅動力。</strong>夥伴覺得生活無聊、工作無趣、找不到樂趣，整個人的能量就是提不起來。<br><br>
         <strong>第三，自我定位。</strong>不曉得自己要什麼，人生就會迷惘，做什麼都沒有方向感。<br><br>
-        那我想請問您，聽起來您覺得團隊比較需要加強的是哪一塊？是<strong>『說話表達』</strong>的技巧、<strong>『內在驅動力』</strong>的提升、還是<strong>『自我定位』</strong>找到方向？」
+        那我想請問您，聽起來您覺得團隊比較需要加強的是哪一塊？是<strong>『說話表達』</strong>的技巧、<strong>『內在驅動力』</strong>的提升、還是<strong>『自我定位』</strong>找到方向？」</div>
+        <div class="disc-v" data-disc="d">「態度問題我跟您說，80% 其實不是真正的態度問題，根源通常是三個方向：<br><br>
+        <strong>第一，說話方式沒調好。</strong>不是態度差，是音調、肢體、能量不對，聽起來就像在吵架。這個是可以改的，不是性格問題。<br><br>
+        <strong>第二，整個人的能量提不起來。</strong>一個人內在狀態不好，對外的表現當然也好不了，這是連動的。<br><br>
+        <strong>第三，找不到工作的意義。</strong>不知道為什麼要做，敷衍了事是很自然的結果。<br><br>
+        您覺得您的夥伴比較偏哪一個？」</div>
+        <div class="disc-v" data-disc="i">「老闆，這個我真的太理解了！其實 80% 的態度問題，根源不是態度本身，而是三個方向：<br><br>
+        <strong>第一，說話方式沒有調對。</strong>其實夥伴不是故意的，是音調、肢體、能量的方式讓人覺得在吵架。這個真的是可以改變的！<br><br>
+        <strong>第二，整個人的能量狀態低落。</strong>一個人內在狀態不好，表現出來的感覺就是不對，這兩個是連動的。<br><br>
+        <strong>第三，找不到工作的意義感。</strong>不知道自己為什麼要做，當然什麼事都敷衍。<br><br>
+        您覺得您的夥伴比較偏哪個方向呢？」</div>
+        <div class="disc-v" data-disc="s">「老闆，謝謝您願意跟我說這些，帶團隊真的很不容易。其實您說的這個問題，很多老闆都有，您不孤單。我們一起來看看根源在哪裡：<br><br>
+        <strong>第一，可能是說話的方式還沒調對。</strong>有時候不是夥伴態度差，是表達的能量和方式讓人誤解了，這個是可以慢慢改善的。<br><br>
+        <strong>第二，可能是整個人的狀態還沒穩定下來。</strong>一個人內在不安穩，對外的表現也會不穩定，這兩個是連動的。<br><br>
+        <strong>第三，可能是還沒找到工作的意義。</strong>當一個人不確定自己為什麼要做這份工作，自然會提不起勁。<br><br>
+        老闆，您覺得比較偏哪一個方向呢？」</div>
+        <div class="disc-v" data-disc="c">「老闆，根據我們的觀察，您說的態度問題，底層通常有三個根源，值得分開來看：<br><br>
+        <strong>第一，表達方式的問題。</strong>同一句話，音調、肢體語言、能量不同，傳達出來的訊息就完全不同。這是技術層面可以訓練的。<br><br>
+        <strong>第二，內在狀態的問題。</strong>一個人的心理狀態會直接影響他的外在表現，兩者是連動的。內在狀態不穩定，外在表現很難持續良好。<br><br>
+        <strong>第三，認知層面的問題。</strong>夥伴不清楚自己為什麼要在這份工作上，缺乏意義感，行為自然趨向敷衍。<br><br>
+        根據您的觀察，這三個面向裡，哪一個是主要因素？」</div>
       </div>
       <div>
         <span class="course-badge badge-talk">→ 言之有物</span>
@@ -927,11 +1131,29 @@
           <div class="course-detail-body"><div class="course-detail-inner">
             <div class="script" style="border-color:#f97316">
               <div class="script-label" style="color:#fb923c">言之有物 — 怎麼跟客戶說</div>
-              「所以您希望夥伴說出來的話能讓人舒服、讓人聽得進去，而不是每次開口都像在吵架，對嗎？」<br><br>
+              <div class="disc-v disc-show" data-disc="default">「所以您希望夥伴說出來的話能讓人舒服、讓人聽得進去，而不是每次開口都像在吵架，對嗎？」<br><br>
               <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
               「想像一下，下次團隊開會的時候，您的夥伴不再是那個讓人皺眉頭的人了。他說話有條理、有溫度，客戶覺得被尊重、同事覺得好溝通。以前跟他合作的人開始主動找他，因為大家發現『他變了』。這不是性格改了，是他學會了用對的方式表達。<br><br>
               跟一般只教口才技巧的課程不同，『言之有物』教的是<strong>表達力公式：能量 × 邏輯 × 格局</strong>。課程還教<strong>三種角色的溝通策略</strong>——向上溝通、平級溝通、向下溝通。基層要尊嚴、中層要發展、高層要未來——不同層級的需求不一樣，溝通方式也要不一樣。搭配<strong>30 秒電梯簡報</strong>技巧，讓夥伴能在最短時間內精準傳達重點。學員 l.fun_666 說這堂課『招招落地馬上能用』，Tracy（行銷業）說學會了『用策略取代蠻力』。」<br><br>
-              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+              <div class="disc-v" data-disc="d">「所以您要的是——夥伴說話讓人舒服、聽得進去，而不是每次開口都像在吵架，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我跟您說一下。『言之有物』教<strong>表達力公式加三種角色溝通策略</strong>，向上、平級、向下都有不同打法。學員說『招招落地馬上能用』。<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="i">「所以您希望夥伴說出來的話讓人覺得舒服，開口讓人想聽、讓客戶點頭、讓同事服氣，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「老闆，想像一下——下次開會，那個以前讓人皺眉頭的夥伴，說話變得有條理、有溫度了。以前跟他合作的人開始主動找他，因為大家都說『他變了耶！』這不是性格改變，是他學會了用對的方式說話！<br><br>
+              『言之有物』教<strong>表達力公式：能量 × 邏輯 × 格局</strong>，還有向上、平級、向下三種溝通策略。很多學員說『招招落地，馬上就能用』，真的不是理論！<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="s">「所以您希望夥伴說話能讓人舒服、讓人覺得好溝通，大家合作起來更順，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我們來看一下。您可以想像一下——您的夥伴以後說話有條理、有溫度，同事覺得跟他合作很舒服，客戶也覺得被尊重。慢慢地，大家都開始主動找他，因為跟他說話感覺很安心，不用擔心衝突。<br><br>
+              『言之有物』教的是<strong>表達力公式：能量 × 邏輯 × 格局</strong>，還有向上、平級、向下三種角色的溝通策略。課程很實用，學員說上完就能馬上用。<br><br>
+              您覺得這個方向適合嗎？」</div>
+              <div class="disc-v" data-disc="c">「所以您評估夥伴需要的是一套結構化的表達系統，讓溝通方式更精準、更有效率，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我說明一下。『言之有物』建立在<strong>表達力公式：能量 × 邏輯 × 格局</strong>的框架上，課程涵蓋三個核心模組：<strong>向上溝通策略</strong>（讓決策者接受想法）、<strong>平級溝通策略</strong>（在同儕中建立影響力）、<strong>向下溝通策略</strong>（讓團隊有效執行）。基層要尊嚴、中層要發展、高層要未來——不同層級需求不同，溝通方式也要系統性調整。落地性高，學員反映上完課即可應用。<br><br>
+              您覺得這個方向符合您的需求嗎？」</div>
             </div>
           </div></div>
         </div>
@@ -941,11 +1163,29 @@
           <div class="course-detail-body"><div class="course-detail-inner">
             <div class="script" style="border-color:#ec4899">
               <div class="script-label" style="color:#f472b6">影響力 — 怎麼跟客戶說</div>
-              「所以您覺得夥伴的態度問題根源是整個人的能量不夠、提不起勁，對嗎？」<br><br>
+              <div class="disc-v disc-show" data-disc="default">「所以您覺得夥伴的態度問題根源是整個人的能量不夠、提不起勁，對嗎？」<br><br>
               <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
               「想像一下，有一天您走進辦公室，發現那個以前總是擺臭臉的夥伴，今天竟然主動跟同事打招呼，還笑著跟客戶聊天。不是因為被罵了、不是因為被威脅了，而是因為他內在的能量被啟動了，他開始享受跟人互動的感覺。整個團隊的氛圍從那天開始不一樣了。<br><br>
               跟一般只靠喊口號的激勵課不同，『影響力』教的是怎麼透過<strong>自我覺察和能量管理</strong>，找到內心真正想要的東西。影響力不是靠嗓門大，而是靠內在的力量。當一個人內在狀態穩定了，他說出來的話自然就不會讓人不舒服。對老闆來說，這就是團隊文化開始轉變的起點。」<br><br>
-              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+              <div class="disc-v" data-disc="d">「所以您要的是——夥伴內在能量穩定了，態度自然跟著改變，不用您一直管，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我跟您說一下。『影響力』不是靠喊口號，教的是<strong>自我覺察和能量管理</strong>。當一個人內在狀態穩定，說出來的話自然不讓人不舒服。這是根本改變，不是表面工夫。<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="i">「所以您覺得夥伴的態度問題，其實是整個人的能量低落，還沒有被點燃，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「老闆，想像一下這個畫面——有一天您走進辦公室，那個以前總是擺臭臉的夥伴，今天竟然主動跟同事打招呼，還笑著跟客戶聊天！不是因為被罵了，是因為他內在的能量被啟動了，他開始享受跟人互動的感覺。整個團隊的氣氛從那天開始都不一樣了！<br><br>
+              『影響力』教的是<strong>自我覺察和能量管理</strong>，讓每個人找到內心真正的驅動力。影響力不是靠嗓門大，是靠內在的力量！<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="s">「所以您覺得夥伴的態度問題，根源是整個人的狀態不夠穩定，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我們來看一下。您可以想像一下——有一天，那個以前讓您擔心態度的夥伴，開始主動跟同事打招呼、笑著跟客戶聊天了。不是因為被逼的，是因為他內在狀態穩定了，說話自然就讓人舒服了。<br><br>
+              『影響力』透過<strong>自我覺察和能量管理</strong>，幫每個人找到內心真正的力量，一步一步來。當一個人狀態好了，態度自然會跟著變好，不需要外力強迫。<br><br>
+              您覺得這個方向適合嗎？」</div>
+              <div class="disc-v" data-disc="c">「所以您評估夥伴的態度問題，根源在於內在狀態失調，需要從心理能量層面系統性解決，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我說明一下。從心理學的角度來看，一個人的內在狀態會直接影響他的外在行為——態度、語氣、肢體語言都是內在的外顯。『影響力』透過<strong>自我覺察和能量管理</strong>的系統化訓練，從根本改變夥伴的內在狀態。當內在穩定了，外在表現自然就不同，這是可預期的結果。<br><br>
+              您覺得這個方向符合您的需求嗎？」</div>
             </div>
           </div></div>
         </div>
@@ -955,11 +1195,29 @@
           <div class="course-detail-body"><div class="course-detail-inner">
             <div class="script" style="border-color:#06b6d4">
               <div class="script-label" style="color:#22d3ee">生涯運數 — 怎麼跟客戶說</div>
-              「所以您覺得夥伴的態度問題，根源是他不知道自己為什麼要做這份工作，對嗎？」<br><br>
+              <div class="disc-v disc-show" data-disc="default">「所以您覺得夥伴的態度問題，根源是他不知道自己為什麼要做這份工作，對嗎？」<br><br>
               <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
               「想像一下，您的夥伴有一天突然態度大轉變——不是因為您罵了他，而是因為他終於想通了自己要什麼。他跑來跟您說：『老闆，我以前態度不好是因為我不知道自己在這裡幹嘛。現在我知道了，我會好好做。』從那天起，他不只態度變好，連業績都開始往上走。<br><br>
               跟一般只做性格測驗的職涯課不同，『生涯運數』透過系統化的方式，幫助每個人找到自己的天賦和定位。當他清楚知道自己為什麼在這裡，態度就會從被動變成主動。認知對了，態度自然就對了。」<br><br>
-              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+              <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+              <div class="disc-v" data-disc="d">「所以您要的是——夥伴找到自己的定位，認知對了，態度自然跟著對，不用您一直糾正，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我跟您說一下。『生涯運數』系統化幫每個人找天賦和定位。認知對了，態度就對了，業績也會跟著動。這是根本解，不是表面管理。<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="i">「所以您覺得夥伴態度的問題，根源是他不確定自己為什麼要做這份工作，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「老闆，想像一下這個畫面——您的夥伴有一天態度大轉變，跑來跟您說：『老闆，我以前態度不好是因為我不知道自己在這裡幹嘛。現在我知道了，我要好好做！』從那天起，他不只態度變好，連業績都開始往上走，這種轉變真的很驚人！<br><br>
+              『生涯運數』幫每個人系統性地找到天賦和定位。當夥伴知道自己為什麼在這裡，整個人都不一樣了！<br><br>
+              這堂您覺得適合嗎？」</div>
+              <div class="disc-v" data-disc="s">「所以您覺得夥伴的態度問題，是因為他還不確定自己為什麼要做這份工作，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我們來看一下。您可以想像一下——您的夥伴有一天跑來跟您說：『老闆，我以前態度不好，是因為我不知道自己在這裡幹嘛。現在我想通了。』從那天起，不需要您提醒，他自己就會把事情做好，因為他找到了自己的理由。<br><br>
+              『生涯運數』用系統化的方式，陪每個人找到天賦和定位，步驟清楚，不會讓人覺得茫然。當他知道自己為什麼在這裡，態度自然就對了。<br><br>
+              您覺得這個方向適合嗎？」</div>
+              <div class="disc-v" data-disc="c">「所以您評估夥伴的態度問題，根本原因在於目標與自我認同的錯位，需要從認知層面重建，對嗎？」<br><br>
+              <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+              「好，那我說明一下。從認知心理學的角度，一個人的行為是由他的信念和自我認同所驅動的。當夥伴不清楚自己為什麼要做這份工作，他的行為就會趨向低投入——這不是意願問題，是認知問題。『生涯運數』透過系統化的自我分析，幫夥伴重建目標與自我認同的連結。認知對齊了，行為自然就改變，效果是根本性的。<br><br>
+              您覺得這個方向符合您的需求嗎？」</div>
             </div>
           </div></div>
         </div>
@@ -987,14 +1245,26 @@
       <div class="script-oneliner">💡 一句話版本：「能力問題最好解決，因為能力可以透過系統來複製。」</div>
       <div class="script">
         <div class="script-label">追問腳本</div>
-        「老闆，能力問題其實是最好解決的，因為能力可以透過系統來複製。我先問您幾個關鍵問題，幫您釐清團隊的瓶頸在哪裡：<br><br>
+        <div class="disc-v disc-show" data-disc="default">「老闆，能力問題其實是最好解決的，因為能力可以透過系統來複製。我先問您幾個關鍵問題，幫您釐清團隊的瓶頸在哪裡：<br><br>
         第一，<strong>客人不夠多</strong>？名單來源不穩定，團隊不知道去哪裡找客人。<br>
         第二，<strong>客人來了成交不了</strong>？流程不清楚，每次都靠感覺在賣。<br>
         第三，<strong>業務看不懂客戶在想什麼</strong>？同一套說法，有人買單有人不買。<br>
         第四，<strong>很忙但產出不高</strong>？時間花了很多，但業績沒有跟上。<br>
         第五，<strong>團隊無法複製</strong>？自己會做但教不會別人，沒有標準 SOP。<br>
         第六，<strong>高階主管無法展店</strong>？缺的不只是基本功，還有帶人和吸引人才的能力。<br><br>
-        您覺得團隊目前最痛的是哪一個？」
+        您覺得團隊目前最痛的是哪一個？」</div>
+        <div class="disc-v" data-disc="d">「能力問題最好解——系統可以複製。直接問：<br><br>
+        是<strong>客人不夠多</strong>？<strong>成交不了</strong>？<strong>很忙沒產出</strong>？<strong>團隊複製不了</strong>？還是<strong>主管展不了店</strong>？<br><br>
+        最痛的是哪個？」</div>
+        <div class="disc-v" data-disc="i">「老闆，能力問題其實是最好解的！因為能力是可以透過系統複製的，這是最讓人興奮的事。我先問您幾個問題，我們一起找出最關鍵的那個：<br><br>
+        是<strong>客人來源不穩定</strong>？還是<strong>客人來了但成交不了</strong>？是<strong>業務很忙但沒有產出</strong>？還是<strong>自己會做但教不起來團隊</strong>？或是<strong>主管想展店但帶不起人</strong>？<br><br>
+        您覺得哪個最讓您困擾？」</div>
+        <div class="disc-v" data-disc="s">「老闆，能力問題其實是最容易解決的，因為能力是可以透過系統慢慢複製的，您不用擔心。我先問您幾個問題，我們一起找出最關鍵的地方：<br><br>
+        是<strong>名單來源不夠穩定</strong>？還是<strong>客人來了但成交不太順</strong>？是<strong>時間花了很多但產出不高</strong>？還是<strong>您自己會做但不知道怎麼教給團隊</strong>？或者是<strong>主管想帶新據點但還沒有把握</strong>？<br><br>
+        您覺得哪一個比較讓您放心不下？」</div>
+        <div class="disc-v" data-disc="c">「老闆，能力問題在這三類裡是相對最容易解決的，因為能力可以系統化複製。我先幫您做一個精確的診斷——<br><br>
+        問題是出在<strong>名單開發端</strong>（流量來源不穩定）、<strong>成交端</strong>（轉換率偏低）、<strong>效率端</strong>（投入產出比不理想）、<strong>複製端</strong>（方法無法系統化傳承）、還是<strong>領導端</strong>（主管的帶人和擴張能力）？<br><br>
+        您評估主要瓶頸在哪裡？」</div>
       </div>
 
       <!-- 子分支 A: 名單 → 流量磁鐵 -->
@@ -1005,11 +1275,29 @@
         </div>
         <div class="script" style="margin-top:8px">
           <div class="script-label">回話腳本</div>
-          「所以您想要一套系統幫團隊持續產生新名單，對嗎？」<br><br>
+          <div class="disc-v disc-show" data-disc="default">「所以您想要一套系統幫團隊持續產生新名單，對嗎？」<br><br>
           <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
           「想像一下，三個月後您的團隊每個人手上都有源源不絕的名單——不用再靠老客戶轉介紹、不用再到處發傳單。每個業務每天打開手機就有新的潛在客戶可以聯繫，他們只需要選擇今天要先服務誰。團隊不再為了名單焦慮，而是專注在成交上。<br><br>
           跟一般只教發社群貼文的課程不同，泰欣老師的『流量磁鐵』用<strong>天地人網</strong>四大打法系統性地解決名單問題——線上線下互相導流、社群經營加個人品牌、實體場景和人脈串聯。泰欣老師是 2019 保時捷全球百大、全台第一，有 14+ 年實戰經驗。課程還教<strong>客戶管理四部曲：存→記→分→細</strong>，讓每一個名單都不會漏掉。有學員掌握天地人網之後，90 天內流量突破 3,000 萬，薪資成長 3 倍。」<br><br>
-          <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+          <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+          <div class="disc-v" data-disc="d">「所以您要的是——團隊有穩定的名單，不靠運氣、不靠轉介紹，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，那我跟您說一下。『流量磁鐵』用<strong>天地人網</strong>四大打法系統性地解決名單問題——線上線下導流、社群個人品牌、實體人脈串聯，配<strong>客戶管理四部曲存→記→分→細</strong>。泰欣老師 2019 保時捷全球百大全台第一，14 年實戰。有學員 90 天流量破 3,000 萬，薪資 3 倍。<br><br>
+          這堂您覺得適合嗎？」</div>
+          <div class="disc-v" data-disc="i">「所以您希望團隊每個人都有穩定的名單，不用靠運氣、不用靠轉介紹，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「老闆，想像一下——三個月後，您的每個業務每天打開手機都有新的潛在客戶主動找上你。他們不用再苦苦等人介紹、不用到處發傳單，名單源源不絕。整個團隊的狀態從焦慮找名單，變成輕鬆選擇要服務誰，那種轉變真的很驚人！<br><br>
+          『流量磁鐵』用<strong>天地人網</strong>四大打法系統性地開發名單。泰欣老師是 2019 保時捷全球百大全台第一，14 年的實戰經驗濃縮在這堂課裡！有學員照著跑，90 天流量突破 3,000 萬，薪資成長 3 倍，超級厲害！<br><br>
+          這堂您覺得適合嗎？」</div>
+          <div class="disc-v" data-disc="s">「所以您希望團隊有一套穩定的名單來源，不用擔心哪天名單突然斷掉，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，那我們來看一下。您可以想像一下——三個月後，您的每個業務手上都有持續進來的新名單，他們不用再為找不到客人而焦慮，可以安心地專注在服務客戶上。整個團隊的狀態會穩很多。<br><br>
+          『流量磁鐵』用<strong>天地人網</strong>四大打法，系統性地建立穩定的名單來源，每一步都有清楚的標準動作，不用摸索。泰欣老師有 14 年的實戰經驗，有學員照著這套慢慢做，90 天流量突破 3,000 萬，薪資成長 3 倍。<br><br>
+          您覺得這個方向適合嗎？」</div>
+          <div class="disc-v" data-disc="c">「所以您評估主要瓶頸在名單開發端，需要的是一套可系統化複製的名單開發機制，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，那我說明一下。『流量磁鐵』用<strong>天地人網</strong>四大打法建立結構化的名單開發系統——線上線下導流、社群個人品牌建立、實體場景和人脈網絡串聯，每一個打法都有具體的執行標準。搭配<strong>客戶管理四部曲：存→記→分→細</strong>，確保每一個名單都有完整的跟進紀錄。有學員系統性執行後，90 天內流量突破 3,000 萬，薪資成長 3 倍。泰欣老師有 14 年的實戰數據支撐這套方法的有效性。<br><br>
+          您覺得這個方向符合您的需求嗎？」</div>
         </div>
       </div>
 
@@ -1022,7 +1310,11 @@
         </div>
         <div class="script" style="margin-top:8px">
           <div class="script-label">追問腳本</div>
-          「成交不了的話，我再幫您釐清一下——您覺得夥伴比較是<strong>『流程不清楚、不知道下一步該做什麼』</strong>，還是<strong>『看不懂客戶是什麼類型的人』</strong>？」
+          <div class="disc-v disc-show" data-disc="default">「成交不了的話，我再幫您釐清一下——您覺得夥伴比較是<strong>『流程不清楚、不知道下一步該做什麼』</strong>，還是<strong>『看不懂客戶是什麼類型的人』</strong>？」</div>
+          <div class="disc-v" data-disc="d">「成交不了，我直接問——是<strong>流程不清楚</strong>還是<strong>看不懂客戶類型</strong>？」</div>
+          <div class="disc-v" data-disc="i">「成交不了的話，我們再深入一點——您覺得夥伴比較是<strong>『不知道每一步該做什麼』</strong>，還是<strong>『看不懂客戶在想什麼、不知道怎麼說』</strong>？」</div>
+          <div class="disc-v" data-disc="s">「成交不了的話，我們不急，一起慢慢釐清——您覺得夥伴比較是<strong>『流程不夠清楚、每次都靠感覺』</strong>，還是<strong>『不太確定客戶是什麼類型的人、不知道怎麼對症下藥』</strong>？」</div>
+          <div class="disc-v" data-disc="c">「成交不了，我再幫您做一個精確診斷——問題在於<strong>流程標準化不足</strong>（每個人做法不同、沒有可複製的 SOP），還是<strong>客戶行為分析能力不足</strong>（無法根據客戶類型調整溝通策略）？」</div>
         </div>
         <div style="margin-top:8px">
           <span class="course-badge badge-close">→ 成交地圖</span>
@@ -1035,11 +1327,27 @@
             <div class="course-detail-body"><div class="course-detail-inner">
               <div class="script" style="border-color:#ef4444">
                 <div class="script-label" style="color:#f87171">成交地圖 — 怎麼跟客戶說</div>
-                「所以您希望團隊有一套標準的成交流程，每個人照著做就能有結果，對嗎？」<br><br>
+                <div class="disc-v disc-show" data-disc="default">「所以您希望團隊有一套標準的成交流程，每個人照著做就能有結果，對嗎？」<br><br>
                 <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
                 「想像一下，您的每一個業務以後面對客戶，都知道現在在哪一關、下一步該做什麼。不再靠個人感覺，而是靠系統。新人進來，三天就能上手，因為流程很清楚。您不用再一個一個盯，團隊自己就能運轉。<br><br>
                 跟一般只教話術的銷售課不同，『成交地圖』把成交流程拆成<strong>四大關卡</strong>——<strong>第一印象</strong>用『具體事實 + 正面特質』建立信任，<strong>五大核心問題</strong>挖掘真正需求，<strong>MBAF 產品介紹法</strong>精準傳達價值，最後<strong>成交 365</strong>引導成交含完整異議處理。每一關都有公式，回去直接複製給團隊。有一位保險業的張小姐，上完課照著做，三個月衝上新人第一名。」<br><br>
-                <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+                <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+                <div class="disc-v" data-disc="d">「所以您要的是——一套標準成交流程，照著跑就有結果，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，四大關卡——<strong>第一印象、五大核心問題、MBAF、成交 365</strong>，每關有公式，直接當 SOP 給團隊用。張小姐照著跑，三個月新人第一名。<br><br>
+                這堂您覺得適合嗎？」</div>
+                <div class="disc-v" data-disc="i">「所以您希望每個業務面對客戶都有清楚的方向，不用靠感覺，照著做就能有結果，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「老闆，想像一下——您的新人進來第三天，就已經知道面對客戶的每一個步驟。心裡清楚現在在哪一關、下一步做什麼，不慌不亂，這種信心是多麼珍貴！四大關卡——<strong>第一印象、五大核心問題、MBAF、成交 365</strong>，每一關有公式。張小姐照著做三個月就到新人第一名，她自己都說太神奇了！<br><br>
+                這堂您覺得適合嗎？」</div>
+                <div class="disc-v" data-disc="s">「所以您希望每個業務都有一套可以依循的流程，踏踏實實照著走就能有結果，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，那我們來看一下。四大關卡——<strong>第一印象、五大核心問題、MBAF、成交 365</strong>，每一關都有清楚步驟，夥伴每一步都知道該怎麼走，心裡是踏實的。新人進來照著學，不用靠老鳥手把手帶，慢慢就能穩定下來。張小姐一步一步做，三個月新人第一名。<br><br>
+                您覺得這個方向適合嗎？」</div>
+                <div class="disc-v" data-disc="c">「所以您評估問題在成交端，需要一套標準化流程，確保每個人執行品質一致，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，那我說明一下。四個關卡——<strong>第一印象</strong>建立信任、<strong>五大核心問題</strong>挖掘需求、<strong>MBAF</strong>傳達價值、<strong>成交 365</strong>含完整異議處理邏輯。每一關有明確的操作標準，把個人成交率差異最小化。張小姐照著執行，三個月新人第一名。<br><br>
+                您覺得這個方向符合您的需求嗎？」</div>
               </div>
             </div></div>
           </div>
@@ -1049,11 +1357,27 @@
             <div class="course-detail-body"><div class="course-detail-inner">
               <div class="script" style="border-color:#8b5cf6">
                 <div class="script-label" style="color:#a78bfa">直指人心 — 怎麼跟客戶說</div>
-                「所以您希望夥伴能快速看懂客戶是什麼類型的人，知道怎麼對症下藥，對嗎？」<br><br>
+                <div class="disc-v disc-show" data-disc="default">「所以您希望夥伴能快速看懂客戶是什麼類型的人，知道怎麼對症下藥，對嗎？」<br><br>
                 <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
                 「想像一下，您的業務以後每一個客戶走進來，他觀察三十秒就知道對方是什麼類型的人、在意什麼、最怕什麼。他不用再猜，直接用客戶聽得進去的方式說話。成交變得輕鬆又自然，客戶還覺得『這個人真的懂我』。<br><br>
                 跟一般只教 DISC 理論的課程不同，『直指人心』直接教怎麼從客戶的<strong>外貌舉止、聲音語調</strong>快速判斷類型，然後套回成交地圖四大關卡。D 型要結果不廢話、I 型要感覺不無聊、S 型要安全不麻煩、C 型要數據不忽悠。有一位保險業的林先生，學會看懂人性後，今年實收保費直接破億。」<br><br>
-                <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+                <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+                <div class="disc-v" data-disc="d">「所以您要的是——業務觀察客戶 30 秒就知道怎麼開口，不用再猜，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，『直指人心』直接教從客戶的<strong>外貌舉止、聲音語調</strong>快速判斷 DISC 四型，套進成交關卡。D 型要結果、I 型要感覺、S 型要安全、C 型要數據。林先生學完，今年實收保費破億。<br><br>
+                這堂您覺得適合嗎？」</div>
+                <div class="disc-v" data-disc="i">「所以您希望業務能快速看懂客戶是什麼樣的人，知道怎麼說他才聽得進去，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「老闆，想像一下——您的業務跟客戶聊了三十秒，就已經知道這個人在意什麼、最怕什麼、要用什麼方式跟他說話。客戶感覺到被理解了，就會覺得『這個人真的懂我』，成交就變得很自然！『直指人心』教怎麼從<strong>外貌舉止、聲音語調</strong>快速判斷 DISC 四型。林先生學完，今年實收保費直接破億！<br><br>
+                這堂您覺得適合嗎？」</div>
+                <div class="disc-v" data-disc="s">「所以您希望業務能看懂不同客戶的需求，用對方聽得進去的方式說話，讓客戶覺得被照顧到，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，那我們來看一下。您可以想像一下——您的業務以後跟每一個客戶說話，對方都覺得『這個人懂我』，不會有壓迫感，也不會雞同鴨講。成交不是靠逼，而是因為對方感覺到被理解了。『直指人心』教怎麼從客戶的<strong>外貌舉止、聲音語調</strong>判斷類型，再用對方最容易接受的方式溝通。林先生學完，今年實收保費直接破億。<br><br>
+                您覺得這個方向適合嗎？」</div>
+                <div class="disc-v" data-disc="c">「所以您評估問題在於業務無法根據客戶類型調整溝通策略，導致轉換率不穩定，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，那我說明一下。『直指人心』教的是從客戶的<strong>外貌舉止、聲音語調</strong>等可觀察的行為線索，快速判斷 DISC 四型，然後套用對應的溝通策略——D 型注重結果、I 型重視感受、S 型需要安全感、C 型要求數據和邏輯。這套方法把人性判讀從感性直覺轉化為可操作的系統。林先生學完這套方法後，今年實收保費達到破億的成績。<br><br>
+                您覺得這個方向符合您的需求嗎？」</div>
               </div>
             </div></div>
           </div>
@@ -1069,10 +1393,25 @@
         </div>
         <div class="script" style="margin-top:8px">
           <div class="script-label">追問腳本</div>
-          「所以您自己很會做，但團隊複製不起來，對嗎？」<br><br>
+          <div class="disc-v disc-show" data-disc="default">「所以您自己很會做，但團隊複製不起來，對嗎？」<br><br>
           <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
           「這其實是最常見的問題。您的方法停留在經驗跟直覺的階段，還沒有變成一套別人可以照著做的 SOP。團隊需要的是兩件事：<strong>一套開發名單的標準流程</strong>，加上<strong>一套成交的標準流程</strong>。<br><br>
-          您覺得團隊比較缺的是<strong>『怎麼開發名單的 SOP』</strong>，還是<strong>『怎麼成交的 SOP』</strong>？」
+          您覺得團隊比較缺的是<strong>『怎麼開發名單的 SOP』</strong>，還是<strong>『怎麼成交的 SOP』</strong>？」</div>
+          <div class="disc-v" data-disc="d">「所以您自己很會做，但方法還在您的腦袋裡，沒有變成 SOP，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「直接問——團隊比較缺的是<strong>名單開發 SOP</strong> 還是<strong>成交 SOP</strong>？」</div>
+          <div class="disc-v" data-disc="i">「所以您自己很會做，但這套方法還沒有辦法讓團隊複製起來，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「老闆，這其實是很多厲害的業務主管都會遇到的問題！您的方法還停留在經驗和直覺的階段，還沒有被整理成一套別人可以照著做的 SOP。好消息是，這個問題是可以解決的！<br><br>
+          您覺得團隊比較缺的是<strong>『怎麼開發名單的 SOP』</strong>，還是<strong>『怎麼成交的 SOP』</strong>？」</div>
+          <div class="disc-v" data-disc="s">「所以您自己很會做，但這套方法還沒有辦法讓每個人都能穩定複製，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「老闆，這是很多優秀的業務主管都會遇到的事，您不用擔心。您的方法現在還是靠經驗和直覺在運作，還沒有整理成一套清楚的步驟讓大家依循。我們慢慢來找出最關鍵的缺口——<br><br>
+          您覺得團隊比較缺的是<strong>『名單開發的 SOP』</strong>，還是<strong>『成交的 SOP』</strong>？」</div>
+          <div class="disc-v" data-disc="c">「所以您自己的方法尚未被系統化為可複製的標準作業程序，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「這是很常見的規模化瓶頸。當一個方法依賴個人經驗和直覺，它就無法被有效傳遞。系統化需要兩個層次：<strong>名單開發的標準化流程</strong>（解決輸入端）和<strong>成交的標準化流程</strong>（解決轉換端）。<br><br>
+          您評估哪一端的標準化缺口更大？」</div>
         </div>
         <div style="margin-top:8px">
           <span class="course-badge badge-flow">→ 流量磁鐵</span>
@@ -1085,11 +1424,29 @@
             <div class="course-detail-body"><div class="course-detail-inner">
               <div class="script" style="border-color:#3b82f6">
                 <div class="script-label" style="color:#60a5fa">流量磁鐵 — 怎麼跟客戶說</div>
-                「所以您希望團隊每個人都有一套標準的名單開發流程，不再靠個人摸索，對嗎？」<br><br>
+                <div class="disc-v disc-show" data-disc="default">「所以您希望團隊每個人都有一套標準的名單開發流程，不再靠個人摸索，對嗎？」<br><br>
                 <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
                 「想像一下，您的每一個業務進來第一天，就有一份清楚的名單開發 SOP——第一步做什麼、第二步做什麼、名單怎麼存、怎麼分類、怎麼跟進。不用再一個一個教，團隊自己就能上手開發。新人三個月就能跟資深業務有一樣的名單量。<br><br>
                 跟一般只教觀念的行銷課不同，『流量磁鐵』用<strong>天地人網</strong>四大打法給你一套完整的執行流程——線上線下互相導流、社群經營加個人品牌、實體場景和人脈串聯。搭配<strong>客戶管理四部曲：存→記→分→細</strong>，每一步都有明確的標準動作，回去直接複製給團隊。有學員掌握天地人網之後，90 天內流量突破 3,000 萬，薪資成長 3 倍。」<br><br>
-                <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+                <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+                <div class="disc-v" data-disc="d">「所以您要的是——一套名單開發 SOP，新人拿到就能上手，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，『流量磁鐵』用<strong>天地人網</strong>四大打法建立完整執行流程，配<strong>客戶管理四部曲存→記→分→細</strong>，每一步有標準動作，直接複製給團隊。學員 90 天流量破 3,000 萬，薪資 3 倍。<br><br>
+                這堂您覺得適合嗎？」</div>
+                <div class="disc-v" data-disc="i">「所以您希望團隊每個人進來就有一套清楚的名單開發 SOP，不用摸索、不用靠老鳥帶，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「老闆，想像一下——您的新人第一天進來，就有一份完整的名單開發 SOP 放在面前！第一步做什麼、怎麼存、怎麼跟進，全部都清清楚楚。三個月後，他的名單量跟資深業務差不多了，這種成長速度真的很驚人！<br><br>
+                『流量磁鐵』用<strong>天地人網</strong>四大打法，給团隊一套完整的執行流程，每一步都有明確的標準動作。有學員 90 天流量突破 3,000 萬，薪資成長 3 倍！<br><br>
+                這堂您覺得適合嗎？」</div>
+                <div class="disc-v" data-disc="s">「所以您希望團隊有一套清楚的名單開發流程，每個人都能穩定照著走，不用各自摸索，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，那我們來看一下。您可以想像一下——您的新人進來第一天，就有一份清楚的 SOP 可以依循，每一步都知道該怎麼做，不需要一個一個問。慢慢地，每個人的名單量都穩定上來了，整個團隊也更有秩序。<br><br>
+                『流量磁鐵』用<strong>天地人網</strong>四大打法，每一步都有明確的標準動作，不用摸索。有學員照著這套慢慢做，90 天流量突破 3,000 萬，薪資成長 3 倍。<br><br>
+                您覺得這個方向適合嗎？」</div>
+                <div class="disc-v" data-disc="c">「所以您需要的是一套結構化的名單開發標準流程，可以系統性地傳遞給每一個業務，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，那我說明一下。『流量磁鐵』用<strong>天地人網</strong>四大打法建立結構化的執行流程——每一個打法都有具體的操作標準和步驟。搭配<strong>客戶管理四部曲：存→記→分→細</strong>，確保每個名單都有系統化的跟進機制。這套 SOP 可以直接複製給每一個業務執行，不依賴個人經驗。有學員系統化執行後，90 天流量突破 3,000 萬，薪資成長 3 倍。<br><br>
+                您覺得這個方向符合您的需求嗎？」</div>
               </div>
             </div></div>
           </div>
@@ -1099,11 +1456,29 @@
             <div class="course-detail-body"><div class="course-detail-inner">
               <div class="script" style="border-color:#ef4444">
                 <div class="script-label" style="color:#f87171">成交地圖 — 怎麼跟客戶說</div>
-                「所以您希望團隊有一套標準的成交 SOP，每個人照著做就能成交，對嗎？」<br><br>
+                <div class="disc-v disc-show" data-disc="default">「所以您希望團隊有一套標準的成交 SOP，每個人照著做就能成交，對嗎？」<br><br>
                 <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
                 「想像一下，您的團隊以後每個人面對客戶，都知道現在在哪一關、下一步該做什麼。新人進來看著 SOP 練三天就能上場，不用再靠老鳥手把手帶。您不用再一個一個盯，因為系統會幫你管。團隊的成交率會趨於穩定，不再大起大落。<br><br>
                 跟一般只教話術的銷售課不同，『成交地圖』把成交流程拆成<strong>四大關卡</strong>——<strong>第一印象</strong>建立信任、<strong>五大核心問題</strong>挖掘需求、<strong>MBAF 產品介紹法</strong>傳達價值、<strong>成交 365</strong>引導成交含異議處理。每一關都有明確的步驟和公式，就是一份現成的 SOP，回去直接給團隊用。有一位保險業的張小姐，拿到這套 SOP 後照著做，三個月衝上新人第一名。」<br><br>
-                <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+                <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+                <div class="disc-v" data-disc="d">「所以您要的是——一套成交 SOP，新人三天能上場，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，四大關卡——<strong>第一印象、五大核心問題、MBAF、成交 365</strong>，每關有公式，就是一份現成 SOP 直接用。張小姐拿到後照著做，三個月新人第一名。<br><br>
+                這堂您覺得適合嗎？」</div>
+                <div class="disc-v" data-disc="i">「所以您希望團隊有一套清楚的成交 SOP，新人進來就能照著走，不用靠老鳥手把手教，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「老闆，想像一下——您的新人進來三天，就已經可以獨立面對客戶了！因為他手上有一套清楚的 SOP，每一步都知道該怎麼做。您不用再一個一個盯，團隊的成交率開始穩定上去，不再大起大落，那種感覺真的很踏實！<br><br>
+                四大關卡——<strong>第一印象、五大核心問題、MBAF、成交 365</strong>，每一關有公式，就是一份現成的 SOP！張小姐拿到後三個月就新人第一名！<br><br>
+                這堂您覺得適合嗎？」</div>
+                <div class="disc-v" data-disc="s">「所以您希望團隊有一套穩定的成交流程，每個人都有依循，成交率慢慢穩定下來，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，那我們來看一下。您可以想像一下——新人進來，拿著這套 SOP 練三天就能上場，不需要一直靠老鳥帶。您也不用再一個一個盯，因為每個人都有清楚的步驟可以依循，成交率慢慢就會穩定下來。<br><br>
+                四大關卡——<strong>第一印象、五大核心問題、MBAF、成交 365</strong>，每一關都有明確步驟，是一份可以直接使用的 SOP。張小姐照著這套做，三個月新人第一名。<br><br>
+                您覺得這個方向適合嗎？」</div>
+                <div class="disc-v" data-disc="c">「所以您需要一套標準化的成交流程，確保每個業務執行品質一致、成交率可預期，對嗎？」<br><br>
+                <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+                「好，那我說明一下。『成交地圖』的四大關卡——<strong>第一印象、五大核心問題、MBAF、成交 365</strong>——每一關都有明確的操作標準，可以直接作為 SOP 使用。這套設計的目標是把個人成交率的差異最小化，讓執行結果可以預期。新人按照 SOP 執行，不依賴個人天賦。張小姐照著執行，三個月新人第一名。<br><br>
+                您覺得這個方向符合您的需求嗎？」</div>
               </div>
             </div></div>
           </div>
@@ -1118,11 +1493,27 @@
         </div>
         <div class="script" style="margin-top:8px">
           <div class="script-label">回話腳本</div>
-          「所以您覺得夥伴用同一套方法在講，有人買單有人不買，看不懂客戶到底在想什麼，對嗎？」<br><br>
+          <div class="disc-v disc-show" data-disc="default">「所以您覺得夥伴用同一套方法在講，有人買單有人不買，看不懂客戶到底在想什麼，對嗎？」<br><br>
           <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
           「想像一下，您的業務以後每一個客戶走進來，觀察三十秒就知道對方是什麼類型——在意什麼、最怕什麼、用什麼方式說他才聽得進去。不用再猜，直接對症下藥。客戶會覺得『這個人真的懂我』，成交變得輕鬆又自然。<br><br>
           跟一般只教理論的課不同，『直指人心』直接教怎麼從客戶的<strong>外貌舉止、聲音語調</strong>快速判斷 DISC 四大類型，然後套回成交地圖四大關卡。D 型要結果不廢話、I 型要感覺不無聊、S 型要安全不麻煩、C 型要數據不忽悠。有一位保險業的林先生，學會看懂人性後，今年實收保費直接破億。」<br><br>
-          <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+          <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+          <div class="disc-v" data-disc="d">「所以您要的是——業務觀察 30 秒就知道客戶類型，直接對症下藥，不用再猜，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，『直指人心』從<strong>外貌舉止、聲音語調</strong>快速判斷 DISC 四型，套進成交關卡。D 要結果、I 要感覺、S 要安全、C 要數據。林先生學完，今年實收保費破億。<br><br>
+          這堂您覺得適合嗎？」</div>
+          <div class="disc-v" data-disc="i">「所以您希望業務能快速看懂客戶在想什麼，用對方聽得進去的方式說話，成交變得輕鬆自然，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「老闆，想像一下——您的業務跟客戶聊了三十秒，就已經知道這個人在意什麼、怕什麼、要怎麼說他才聽得進去。客戶感覺到被理解了，就覺得『這個人真的懂我』，成交變得好自然！『直指人心』教從<strong>外貌舉止、聲音語調</strong>快速判斷 DISC 四型。林先生學完，今年實收保費直接破億！<br><br>
+          這堂您覺得適合嗎？」</div>
+          <div class="disc-v" data-disc="s">「所以您希望業務能看懂不同客戶的需求，用對方最舒服的方式說話，讓客戶覺得被照顧到，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，那我們來看一下。您可以想像一下——您的業務以後跟每一個客戶說話，對方都覺得『這個人懂我』，不會有壓力，也不會雞同鴨講。成交不是靠逼，是因為對方感覺到被理解了，自然就點頭了。『直指人心』教從<strong>外貌舉止、聲音語調</strong>判斷類型，再用對方最容易接受的方式溝通。林先生學完，今年實收保費直接破億。<br><br>
+          您覺得這個方向適合嗎？」</div>
+          <div class="disc-v" data-disc="c">「所以您評估問題在於業務無法根據客戶行為特徵調整溝通策略，導致成交率因人而異，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，那我說明一下。『直指人心』教從客戶的<strong>外貌舉止、聲音語調</strong>等可觀察的行為線索，快速判斷 DISC 四型，然後套用對應策略——D 型注重結果效率、I 型重視感受關係、S 型需要安全穩定、C 型要求數據邏輯。把人性判讀從感性直覺轉化為可操作的系統，讓成交率差異可以被縮小。林先生學完，今年實收保費達到破億成績。<br><br>
+          您覺得這個方向符合您的需求嗎？」</div>
         </div>
       </div>
 
@@ -1134,11 +1525,27 @@
         </div>
         <div class="script" style="margin-top:8px">
           <div class="script-label">回話腳本</div>
-          「所以您覺得團隊每天都很忙，但真正用在產生業績的時間少得可怕，對嗎？」<br><br>
+          <div class="disc-v disc-show" data-disc="default">「所以您覺得團隊每天都很忙，但真正用在產生業績的時間少得可怕，對嗎？」<br><br>
           <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
           「想像一下，您的團隊以後每個人都有一套高效率的工作系統——客戶資料一鍵查閱、行程自動排好、跟進提醒不用手動記。每天省下兩三個小時的行政時間，全部拿去見客戶、做成交。同樣的上班時間，產出直接翻倍。<br><br>
           跟一般只教時間管理觀念的課不同，『極致效率』手把手教四大核心系統：<strong>①效率至上通訊錄</strong>——10 秒查 5 年接觸史、1 分鐘匯入 5,000 筆客戶。<strong>②名單建立四部曲：存→記→分→細</strong>。<strong>③時間碼 + 行事曆系統</strong>——每月省下 30+ 小時。<strong>④智能 AI 成交助手</strong>——一秒存進手機、自動配好行事曆。有學員上完課直接省下每月 36,000 元的秘書成本。還有學員說，按一個鍵，很久沒聯絡的客戶自己找上門談合作。」<br><br>
-          <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong>
+          <strong>以上的說明還清楚嗎？您想要選這個課程嗎？</strong></div>
+          <div class="disc-v" data-disc="d">「所以您要的是——同樣的時間，產出直接翻倍，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，四大系統：<strong>效率通訊錄</strong>（10 秒查 5 年紀錄）、<strong>名單四部曲</strong>、<strong>時間碼行事曆</strong>（每月省 30 小時）、<strong>AI 成交助手</strong>（一鍵建檔跟進）。學員每月省下 36,000 秘書成本，舊客戶自己找回來談合作。<br><br>
+          這堂您覺得適合嗎？」</div>
+          <div class="disc-v" data-disc="i">「所以您希望團隊同樣的時間，可以做到更多事、拿到更多業績，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「老闆，想像一下——您的業務以後每天上班，行程已經自動排好了、客戶資料一秒就找到了、該跟進誰手機會自動提醒。以前花在整理資料的時間，全部拿去見客戶、做成交！有學員上完直接省下每月 36,000 的秘書成本，還有人說按一個鍵，很久沒聯絡的客戶自己找回來談合作，真的太厲害了！<br><br>
+          這堂您覺得適合嗎？」</div>
+          <div class="disc-v" data-disc="s">「所以您希望團隊不用那麼累，時間花得更有效率，產出也能慢慢穩定提升，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，那我們來看一下。您可以想像一下——您的業務以後每天上班，行程已經清楚排好、客戶資料隨時找得到、該跟進誰都有提醒。不用再加班整理資料，多出來的時間可以好好陪家人、好好休息，工作和生活都更平衡。有學員每月省下 36,000 的秘書成本，生活品質也提升了。<br><br>
+          您覺得這個方向適合嗎？」</div>
+          <div class="disc-v" data-disc="c">「所以您評估問題在效率端，需要一套系統化的時間和資源管理機制，提升投入產出比，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，那我說明一下。『極致效率』建立四大核心系統——<strong>①效率至上通訊錄</strong>（10 秒查閱 5 年接觸紀錄）、<strong>②名單建立四部曲：存→記→分→細</strong>、<strong>③時間碼 + 行事曆系統</strong>（可量化的每月節省 30+ 小時）、<strong>④AI 成交助手</strong>（自動化跟進機制）。有學員導入後每月直接省下 36,000 元的秘書成本，投資報酬率相當清楚。<br><br>
+          您覺得這個方向符合您的需求嗎？」</div>
         </div>
       </div>
 
@@ -1151,11 +1558,28 @@
         </div>
         <div class="script" style="margin-top:8px">
           <div class="script-label">回話腳本</div>
-          「所以您的高階主管自己會做業績，但展不了店、帶不起新團隊，對嗎？」<br><br>
+          <div class="disc-v disc-show" data-disc="default">「所以您的高階主管自己會做業績，但展不了店、帶不起新團隊，對嗎？」<br><br>
           <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
           「想像一下，您的主管以後不只自己能做，還能站在台上講得讓人心動、願意跟他走。他有一套完整的銷售系統可以教給新人，有帶人的溝通策略，有吸引人才的表達力。展店不再靠老闆一個人推，主管自己就能複製出一個又一個團隊。<br><br>
           展店需要的是<strong>全方位的基本功</strong>——『流量磁鐵』教怎麼開發名單、『成交地圖』教怎麼成交、『直指人心』教怎麼看懂人、『極致效率』教怎麼管理時間。這四堂是基本功。但展店的關鍵在第五堂<strong>『言之有物』</strong>——它教的是<strong>表達力公式：能量 × 邏輯 × 格局</strong>，加上<strong>三種角色溝通策略</strong>（向上、平級、向下），讓主管能夠用語言去吸引人才、帶動團隊、站在台上收人。<br><br>
-          建議先從『成交地圖』打基礎，再上『言之有物』學帶人。根據我的經驗，這兩堂課加起來就是從『頂尖業務』變成『頂尖主管』的關鍵。您想先從哪一堂開始？」
+          建議先從『成交地圖』打基礎，再上『言之有物』學帶人。根據我的經驗，這兩堂課加起來就是從『頂尖業務』變成『頂尖主管』的關鍵。您想先從哪一堂開始？」</div>
+          <div class="disc-v" data-disc="d">「所以您要的是——主管不只自己會做，還能帶人、展店，複製出下一個團隊，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，展店需要兩層。<strong>基本功</strong>：前四堂建立完整銷售系統。<strong>展店關鍵</strong>：第五堂<strong>『言之有物』</strong>——表達力公式加三種帶人策略，讓主管能吸引人才、帶動團隊。從頂尖業務到頂尖主管，就差這一堂。<br><br>
+          先從哪一堂開始？」</div>
+          <div class="disc-v" data-disc="i">「所以您希望主管不只自己能做，還能站在台上讓人心動、願意跟他走，帶出下一個成功的團隊，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「老闆，想像一下——您的主管站在台上說話，底下的人眼神發亮，有人當場說『我要跟你做』！他不需要老闆您一直在旁邊撐場，他自己就能吸引人才、帶動團隊，複製出下一個成功的據點！<br><br>
+          展店需要兩層：前四堂建立完整銷售系統，第五堂<strong>『言之有物』</strong>讓主管有表達力去吸引人。從頂尖業務到頂尖主管，就是差這一堂！<br><br>
+          您想先從哪一堂開始？」</div>
+          <div class="disc-v" data-disc="s">「所以您希望主管慢慢建立起帶人的能力，讓他有信心去帶新團隊，您也可以放心交給他，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，那我們來看一下。展店需要兩層基礎，我們一步一步來——前四堂先把完整的銷售系統建起來，讓主管自己先有足夠的底氣。有了基礎，第五堂<strong>『言之有物』</strong>再教他怎麼用表達力去吸引人才、帶動團隊。不用急，一堂一堂來，每一堂都有紮實的收穫。<br><br>
+          建議先從成交地圖開始打基礎。您覺得這樣的節奏適合嗎？」</div>
+          <div class="disc-v" data-disc="c">「所以您評估問題在領導端，主管需要系統化的帶人方法和可複製的擴張能力，對嗎？」<br><br>
+          <em style="color:#8899bb">當客戶說「對」的時候：</em><br><br>
+          「好，那我說明一下。展店能力的建立需要兩個層次：<strong>第一層是銷售系統</strong>——前四堂確保主管本身有完整的銷售系統可以傳授給新人。<strong>第二層是領導表達能力</strong>——<strong>『言之有物』</strong>的表達力公式加上三種角色溝通策略，讓主管有能力用語言吸引人才、管理團隊、複製績效。建議的執行順序：先用成交地圖建立基礎系統，再用言之有物提升領導表達。這是從頂尖業務晉升為頂尖主管最有效率的路徑。<br><br>
+          您想先從哪一堂開始？」</div>
         </div>
         <div style="margin-top:8px">
           <span class="course-badge badge-flow">流量磁鐵</span>
@@ -1173,14 +1597,25 @@
         </div>
         <div class="script" style="margin-top:8px">
           <div class="script-label">回話腳本</div>
-          「如果多個問題同時存在，代表團隊需要的是一套完整的銷售系統，而不是零散的解決方案。好消息是，泰欣老師的五堂課就是一個完整的飛輪——<br><br>
+          <div class="disc-v disc-show" data-disc="default">「如果多個問題同時存在，代表團隊需要的是一套完整的銷售系統，而不是零散的解決方案。好消息是，泰欣老師的五堂課就是一個完整的飛輪——<br><br>
           『流量磁鐵』解決<strong>客人怎麼來</strong><br>
           『成交地圖』解決<strong>來了怎麼成交</strong><br>
           『直指人心』解決<strong>怎麼看懂客戶</strong><br>
           『極致效率』解決<strong>怎麼用最少時間做最多事</strong><br>
           『言之有物』解決<strong>怎麼說、怎麼帶人、怎麼吸引人</strong><br><br>
           五堂課是一個閉環，可以整套導入，也可以先從最痛的那一堂開始。根據我的經驗，大部分公司先上成交地圖或流量磁鐵，因為這兩堂最直接影響業績。一旦第一堂有成效，整個飛輪就會轉起來。<br><br>
-          您想先從哪一堂開始？」
+          您想先從哪一堂開始？」</div>
+          <div class="disc-v" data-disc="d">「多個問題同時有，就需要系統，不是單堂課能解決的。五堂閉環：<strong>流量磁鐵</strong>（名單）→<strong>成交地圖</strong>（成交）→<strong>直指人心</strong>（看懂人）→<strong>極致效率</strong>（省時間）→<strong>言之有物</strong>（帶人展店）。<br><br>
+          大部分公司從成交地圖或流量磁鐵開始，最直接影響業績。您要從哪堂入手？」</div>
+          <div class="disc-v" data-disc="i">「老闆，如果多個問題同時有，其實是個好消息——代表您需要的是一套完整的系統，而泰欣老師的五堂課就是一個完整的飛輪！<br><br>
+          <strong>流量磁鐵</strong>解決名單、<strong>成交地圖</strong>解決成交、<strong>直指人心</strong>解決看懂人、<strong>極致效率</strong>解決時間、<strong>言之有物</strong>解決帶人和吸引人才。五堂課轉起來就是一個飛輪，越轉越快！<br><br>
+          大部分老闆都先從成交地圖或流量磁鐵開始，因為這兩堂最快看到成效。您想先從哪一堂入手？」</div>
+          <div class="disc-v" data-disc="s">「老闆，如果多個問題同時有，您不用擔心，我們可以一步一步來解決。泰欣老師的五堂課是一個完整的系統——<br><br>
+          <strong>流量磁鐵</strong>穩定名單、<strong>成交地圖</strong>穩定成交、<strong>直指人心</strong>穩定溝通、<strong>極致效率</strong>穩定時間管理、<strong>言之有物</strong>穩定帶人。<br><br>
+          五堂課可以整套導入，也可以先從最讓您困擾的那一堂開始，不用一次全部解決。您覺得從哪一堂開始，您會比較放心？」</div>
+          <div class="disc-v" data-disc="c">「如果多個面向同時有問題，代表需要的是一套完整的系統性解決方案。泰欣老師的五堂課是一個完整的閉環——<br><br>
+          <strong>流量磁鐵</strong>解決名單開發端、<strong>成交地圖</strong>解決成交轉換端、<strong>直指人心</strong>解決溝通精準度、<strong>極致效率</strong>解決投入產出比、<strong>言之有物</strong>解決領導與擴張能力。<br><br>
+          根據我們服務企業的經驗，多數公司選擇從成交地圖或流量磁鐵切入，因為這兩堂的效果最直接可量化。建立了一個成功的起點之後，再系統性地導入其他課程。您認為從哪個面向開始，對您的組織效益最高？」</div>
         </div>
         <div style="margin-top:8px">
           <span class="course-badge badge-flow">流量磁鐵</span>
@@ -1838,6 +2273,33 @@ function goToBranch(tab, branchId, subId) {
 function toggleDetail(el) {
   el.classList.toggle('open');
 }
+
+// DISC selector
+var currentDisc = null;
+function selectDisc(type) {
+  if (currentDisc === type) {
+    currentDisc = null;
+    document.querySelectorAll('.disc-btn').forEach(b => b.classList.remove('active'));
+  } else {
+    currentDisc = type;
+    document.querySelectorAll('.disc-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.disc-btn[data-type="' + type + '"]').classList.add('active');
+  }
+  document.querySelectorAll('.disc-v').forEach(function(el) {
+    var t = el.getAttribute('data-disc');
+    if (!currentDisc) {
+      el.classList.toggle('disc-show', t === 'default');
+    } else {
+      el.classList.toggle('disc-show', t === currentDisc);
+    }
+  });
+}
+// Init: show default on load
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.disc-v[data-disc="default"]').forEach(function(el) {
+    el.classList.add('disc-show');
+  });
+});
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
