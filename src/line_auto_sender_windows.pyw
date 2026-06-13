@@ -27,6 +27,9 @@ import threading
 import webbrowser
 import struct
 import ctypes
+import subprocess
+import platform
+import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 import tkinter as tk
@@ -188,6 +191,41 @@ def get_config_dir():
     config_dir = Path(os.environ.get('APPDATA', Path.home())) / 'LINE自動發訊息'
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
+
+
+class SendStopError(Exception):
+    """安全停止：會顯示錯誤碼並寫入診斷檔。"""
+
+    def __init__(self, code, title, message, detail=""):
+        super().__init__(f"{code} {title}")
+        self.code = code
+        self.title = title
+        self.message = message
+        self.detail = detail
+        self.error_file = write_error_diagnostic(code, title, message, detail)
+
+
+def write_error_diagnostic(code, title, message, detail=""):
+    """寫入學生可回傳的最新錯誤診斷檔。"""
+    error_file = get_config_dir() / "latest_error.txt"
+    try:
+        with open(error_file, 'w', encoding='utf-8') as f:
+            f.write(f"錯誤碼：{code}\n")
+            f.write(f"時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"系統：{platform.platform()}\n")
+            f.write(f"程式：{APP_NAME} Windows 版\n")
+            f.write(f"標題：{title}\n\n")
+            f.write(message)
+            if detail:
+                f.write("\n\n--- 詳細資訊 ---\n")
+                f.write(str(detail))
+    except Exception:
+        pass
+    return error_file
+
+
+def raise_send_error(code, title, message, detail=""):
+    raise SendStopError(code, title, message, detail)
 
 
 def load_templates():
@@ -479,27 +517,68 @@ def copy_image_to_clipboard(image_path):
 def bring_line_to_front():
     """將 LINE 視窗移到最前方"""
     try:
-        import subprocess
-        subprocess.run([
+        proc = subprocess.run([
             'powershell', '-Command',
-            '(New-Object -ComObject WScript.Shell).AppActivate("LINE")'
-        ], capture_output=True, timeout=5)
+            '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; '
+            '$ok=(New-Object -ComObject WScript.Shell).AppActivate("LINE"); '
+            'Write-Output $ok'
+        ], capture_output=True, text=True, timeout=5)
         time.sleep(0.3)
-    except Exception:
-        pass
+        return proc.stdout.strip().lower() == 'true', (proc.stdout + proc.stderr).strip()
+    except Exception as e:
+        return False, str(e)
+
+
+def set_clipboard_text_verified(text, retries=2):
+    """寫入剪貼簿並讀回確認，避免空白或錯誤內容被貼出。"""
+    for _ in range(retries):
+        pyperclip.copy(text)
+        time.sleep(0.08)
+        try:
+            if pyperclip.paste() == text:
+                return True
+        except Exception:
+            pass
+        time.sleep(0.12)
+    return False
+
+
+def paste_and_verify_line_input(expected_text, retries=2):
+    """貼上後讀回 LINE 輸入框內容；完全一致才允許 Enter 送出。"""
+    for _ in range(retries):
+        if not set_clipboard_text_verified(expected_text):
+            return False, "clipboard_write_failed"
+
+        pyautogui.hotkey('ctrl', 'v')
+        time.sleep(0.25)
+        pyautogui.hotkey('ctrl', 'a')
+        time.sleep(0.08)
+        pyautogui.hotkey('ctrl', 'c')
+        time.sleep(0.12)
+        try:
+            pasted_text = pyperclip.paste()
+        except Exception as e:
+            return False, f"clipboard_read_failed: {e}"
+
+        if pasted_text == expected_text:
+            return True, ""
+
+        time.sleep(0.2)
+    return False, "line_input_verify_mismatch"
 
 
 # ==========================================
 # 發送核心邏輯 v2.0
 # ==========================================
 def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
-                  gsheet_logger=None, add_name=False):
+                  gsheet_logger=None, add_name=False, error_cb=None):
     """
     v2.0：加入視窗標題偵測 + 逐筆好友紀錄 + 進度百分比
     """
     global STOP_FLAG
     STOP_FLAG = False
     sent = 0
+    seen_customers = {}
 
     type_names = {'text': '純文字', 'image': '純圖片', 'both': '文字+圖片'}
     type_label = type_names.get(send_type, send_type)
@@ -522,7 +601,14 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             progress_cb(f"⏳ {i} 秒後開始...", "")
             time.sleep(1)
 
-        bring_line_to_front()
+        line_ok, line_detail = bring_line_to_front()
+        if not line_ok:
+            raise_send_error(
+                "WIN-LINE-001",
+                "LINE 沒有開啟",
+                "無法把 LINE 電腦版切到最前面。\n\n請確認這台 Windows 已安裝 LINE 桌面版，而且已登入要發送訊息的帳號。",
+                line_detail
+            )
         time.sleep(0.3)
 
         for i in range(1, count + 1):
@@ -535,7 +621,14 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             # 記住進入聊天室前的視窗標題
             old_title = get_foreground_window_title()
 
-            bring_line_to_front()
+            line_ok, line_detail = bring_line_to_front()
+            if not line_ok:
+                raise_send_error(
+                    "WIN-LINE-002",
+                    "LINE 沒有準備好",
+                    "程式無法偵測或切換到 LINE 視窗。\n\n請先手動打開 LINE 電腦版、登入帳號，並切到好友列表後再重新執行。",
+                    line_detail
+                )
             time.sleep(0.15)
 
             # 按 Enter 進入聊天室
@@ -548,8 +641,18 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             if new_title:
                 friend_name_raw = new_title
             else:
-                # 備援：直接讀取視窗標題
-                friend_name_raw = get_foreground_window_title()
+                raise_send_error(
+                    "WIN-LINE-003",
+                    "沒有成功進入聊天室",
+                    "沒有成功進入聊天室，所以程式已停止，避免送錯人。\n\n"
+                    "請照這樣重新準備 LINE：\n"
+                    "1. 打開 LINE 電腦版並登入。\n"
+                    "2. 回到左側好友列表，不要停在搜尋框。\n"
+                    "3. 用滑鼠點一下第一位要發送的好友，讓他呈現選取狀態。\n"
+                    "4. 不要把 LINE 縮小或蓋住，再重新執行本程式。\n\n"
+                    "如果你原本已經在聊天室，請先按 Esc 回到好友列表再開始。",
+                    f"old_title={old_title!r}, current_title={get_foreground_window_title()!r}"
+                )
 
             # ★ 智慧清理名字（去品牌、去姓氏、去標籤）
             friend_name = clean_friend_name(friend_name_raw)
@@ -562,16 +665,59 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             send_ok = True
             send_note = ""
 
+            recipient_key = (friend_name_raw or friend_name or "").strip()
+            if recipient_key.upper() == "LINE":
+                recipient_key = friend_name or ""
+            if recipient_key:
+                duplicate_count = seen_customers.get(recipient_key, 0)
+                if duplicate_count >= 2:
+                    raise_send_error(
+                        "WIN-DUP-001",
+                        "重複發送保護",
+                        "偵測到同一位客戶已成功發送 2 次，程式已在第 3 次送出前停止。\n\n"
+                        f"客戶：{recipient_key}\n\n"
+                        "請確認 LINE 是否沒有跳到下一位好友。",
+                        f"recipient_key={recipient_key!r}, duplicate_count={duplicate_count}"
+                    )
+
             if send_type in ('text', 'both'):
+                if not msg_text or not msg_text.strip():
+                    raise_send_error(
+                        "WIN-MSG-001",
+                        "文字內容空白",
+                        "本次文字內容是空白，所以程式已停止，避免送出空白訊息。\n\n請重新輸入要發送的文字，再執行一次。"
+                    )
+
                 if friend_name and add_name:
-                    pyperclip.copy(f"{friend_name}，{msg_text}")
+                    final_msg = f"{friend_name}，{msg_text}"
                 else:
-                    pyperclip.copy(msg_text)
-                time.sleep(0.1)
-                pyautogui.hotkey('ctrl', 'v')
-                time.sleep(0.2)
-                pyautogui.press('enter')
-                time.sleep(0.2)
+                    final_msg = msg_text
+
+                if not set_clipboard_text_verified(final_msg):
+                    raise_send_error(
+                        "WIN-CLIP-001",
+                        "剪貼簿異常",
+                        "程式無法把本次訊息穩定寫入剪貼簿，所以已停止，避免送出空白或錯誤內容。\n\n"
+                        "請先確認：\n"
+                        "1. 不要同時使用其他剪貼簿管理工具。\n"
+                        "2. LINE 視窗在最前面。\n"
+                        "3. 關掉本程式後重新開一次。"
+                    )
+
+                input_ok, input_detail = paste_and_verify_line_input(final_msg)
+                if not input_ok:
+                    raise_send_error(
+                        "WIN-INPUT-001",
+                        "LINE 沒有接到訊息",
+                        "程式已把訊息放進剪貼簿，但無法確認 LINE 輸入框真的貼上本次訊息，所以已停止，避免空白發送。\n\n"
+                        "請學生檢查：\n"
+                        "1. LINE 視窗要在最前面，不能被其他視窗蓋住。\n"
+                        "2. 第一位好友要在好友列表被選取，不要點在搜尋框。\n"
+                        "3. 不要同時使用其他剪貼簿管理工具。\n"
+                        "4. 如果還是不行，請錄下從按「開始發送」到停止提示的畫面。",
+                        input_detail
+                    )
+
                 pyautogui.press('enter')
                 time.sleep(0.4)
 
@@ -581,20 +727,25 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                     pyautogui.hotkey('ctrl', 'v')
                     time.sleep(0.8)
                     pyautogui.press('enter')
-                    time.sleep(0.3)
-                    pyautogui.press('enter')
                     time.sleep(0.4)
                 else:
-                    send_ok = False
-                    send_note = "圖片複製失敗"
+                    raise_send_error(
+                        "WIN-IMG-001",
+                        "圖片複製失敗",
+                        "程式無法把圖片放進 Windows 剪貼簿，所以已停止。\n\n請確認圖片檔案存在、格式正常，並避免使用過大的圖片。",
+                        img_path
+                    )
+
+            if recipient_key:
+                seen_customers[recipient_key] = seen_customers.get(recipient_key, 0) + 1
 
             # 離開聊天室
             pyautogui.press('escape')
             time.sleep(0.15)
 
             # ★ 等待標題回到好友列表
-            if friend_name:
-                wait_for_title_return(friend_name, timeout=2)
+            if friend_name_raw:
+                wait_for_title_return(friend_name_raw, timeout=2)
             else:
                 time.sleep(0.3)
 
@@ -634,8 +785,35 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
 
         done_cb(sent, STOP_FLAG)
 
+    except SendStopError as e:
+        progress_cb(f"❌ {e.code}：{e.title}", "")
+        if error_cb:
+            error_cb(e.code, e.title, e.message, e.error_file)
+        if gsheet_logger and batch_id:
+            try:
+                gsheet_logger.log_send_detail(
+                    batch_id, sent + 1, "", type_label, f"❌ {e.code}", e.title[:50]
+                )
+                gsheet_logger.log_batch_summary(batch_id, count, sent, True)
+            except Exception:
+                pass
+        if original_clipboard:
+            try:
+                pyperclip.copy(original_clipboard)
+            except Exception:
+                pass
+        done_cb(sent, True)
+
     except Exception as e:
+        error_file = write_error_diagnostic(
+            "WIN-UNKNOWN-001",
+            "未知錯誤",
+            "程式發生未預期錯誤，已停止。",
+            traceback.format_exc()
+        )
         progress_cb(f"❌ 發生錯誤：{str(e)}", "")
+        if error_cb:
+            error_cb("WIN-UNKNOWN-001", "未知錯誤", f"程式發生未預期錯誤：{e}", error_file)
         if gsheet_logger and batch_id:
             try:
                 gsheet_logger.log_send_detail(
@@ -826,6 +1004,7 @@ class LineAutoSenderApp:
         self.img_path = ''
         self.count = 3
         self.sending = False
+        self.last_error_code = ""
         self.gsheet_logger = None
         self.templates = load_templates()
 
@@ -1324,16 +1503,29 @@ class LineAutoSenderApp:
 
         t = self.send_type.get()
         names = {'text': '純文字', 'image': '純圖片', 'both': '文字+圖片'}
+        preview_lines = [
+            f"發送類型：{names[t]}",
+            f"發送人數：{self.count} 位",
+        ]
+        if t in ('text', 'both'):
+            text_preview = self.msg_text[:220]
+            if self.add_name_var.get():
+                text_preview = f"對方名字，{text_preview}"
+            preview_lines.extend(["", "文字預覽：", text_preview])
+        if t in ('image', 'both'):
+            preview_lines.extend(["", f"圖片：{os.path.basename(self.img_path)}"])
+
         confirm = messagebox.askokcancel(
             "確認發送",
-            f"即將對 {self.count} 位好友發送：{names[t]}\n\n"
+            "\n".join(preview_lines) + "\n\n"
             f"執行期間請不要碰滑鼠和鍵盤！\n"
-            f"按下「確定」後有 3 秒準備時間。\n\n"
+            f"按下「確定」後有 2 秒準備時間。\n\n"
             f"請確保 LINE 好友列表已打開，\n"
             f"且已點選一位好友（灰底狀態）。")
         if not confirm: return
 
         self.sending = True
+        self.last_error_code = ""
         self.start_btn.config(state='disabled')
         self.stop_btn.config(state='normal')
 
@@ -1347,7 +1539,7 @@ class LineAutoSenderApp:
             target=send_messages,
             args=(t, self.msg_text, self.img_path, self.count,
                   self._update_progress, self._on_done, self.gsheet_logger,
-                  self.add_name_var.get()),
+                  self.add_name_var.get(), self._show_error),
             daemon=True).start()
 
     def _stop_send(self):
@@ -1376,11 +1568,28 @@ class LineAutoSenderApp:
                 pass
         self.root.after(0, _update)
 
+    def _show_error(self, code, title, message, error_file):
+        """在主執行緒顯示錯誤碼與診斷檔位置。"""
+        self.last_error_code = code
+
+        def _show():
+            self.status_label.config(text=f"  ❌ {code}：{title}", fg=C_RED)
+            self.friend_label.config(text=f"  診斷檔：{error_file}")
+            messagebox.showerror(
+                title,
+                f"錯誤碼：{code}\n\n{message}\n\n診斷檔已儲存：\n{error_file}"
+            )
+
+        self.root.after(0, _show)
+
     def _on_done(self, sent, stopped):
         def _finish():
             self.sending = False
             self.start_btn.config(state='normal')
             self.stop_btn.config(state='disabled')
+            if self.last_error_code:
+                self.status_label.config(text=f"  ❌ 已停止：{self.last_error_code}", fg=C_RED)
+                return
             if stopped and sent > 0:
                 self.status_label.config(text=f"  ⛔ 已在第 {sent} 位停下", fg=C_ORANGE)
                 self.friend_label.config(text="")
