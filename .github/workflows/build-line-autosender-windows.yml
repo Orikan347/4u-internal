@@ -4,7 +4,12 @@ on:
   push:
     branches:
       - line-autosender-windows-build
+    paths-ignore:
+      - "artifact-output/**"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-windows-exe:
@@ -45,6 +50,18 @@ jobs:
           if (!(Test-Path "src/dist/LINE_AutoSender.exe")) { throw "EXE not found" }
           if (!(Test-Path "LINE自動發訊息_Windows正式客戶版.zip")) { throw "Final package not found" }
           Get-ChildItem "final_package/LINE自動發訊息_Windows正式客戶版"
+
+      - name: Commit final package back to branch
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "artifact-output" | Out-Null
+          Copy-Item "LINE自動發訊息_Windows正式客戶版.zip" "artifact-output/LINE自動發訊息_Windows正式客戶版.zip" -Force
+          Copy-Item "src/dist/LINE_AutoSender.exe" "artifact-output/LINE_AutoSender.exe" -Force
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifact-output/LINE自動發訊息_Windows正式客戶版.zip artifact-output/LINE_AutoSender.exe
+          git commit -m "Add built Windows customer package" || echo "No changes to commit"
+          git push origin HEAD:line-autosender-windows-build
 
       - name: Upload final package
         uses: actions/upload-artifact@v4
