@@ -529,6 +529,95 @@ def bring_line_to_front():
         return False, str(e)
 
 
+def switch_to_english_input_method():
+    """嘗試把目前前景視窗切到英文鍵盤配置，避免中文輸入法攔截 Ctrl+V 或 Enter。"""
+    if not sys.platform.startswith('win'):
+        return True, "not_windows"
+
+    try:
+        from ctypes import wintypes
+
+        user32 = ctypes.WinDLL('user32', use_last_error=True)
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+
+        KLF_ACTIVATE = 0x00000001
+        WM_INPUTLANGCHANGEREQUEST = 0x0050
+        EN_US_KLID = "00000409"
+        EN_US_LANGID = 0x0409
+
+        user32.GetForegroundWindow.restype = wintypes.HWND
+        user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+        user32.GetKeyboardLayout.argtypes = [wintypes.DWORD]
+        user32.GetKeyboardLayout.restype = ctypes.c_void_p
+        user32.LoadKeyboardLayoutW.argtypes = [wintypes.LPCWSTR, wintypes.UINT]
+        user32.LoadKeyboardLayoutW.restype = ctypes.c_void_p
+        user32.ActivateKeyboardLayout.argtypes = [ctypes.c_void_p, wintypes.UINT]
+        user32.ActivateKeyboardLayout.restype = ctypes.c_void_p
+        user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+        user32.AttachThreadInput.restype = wintypes.BOOL
+        user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, ctypes.c_size_t, ctypes.c_ssize_t]
+        user32.PostMessageW.restype = wintypes.BOOL
+        kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+
+        hwnd = user32.GetForegroundWindow()
+        if not hwnd:
+            return False, "找不到目前前景視窗"
+
+        target_pid = wintypes.DWORD()
+        target_thread = user32.GetWindowThreadProcessId(hwnd, ctypes.byref(target_pid))
+        current_thread = kernel32.GetCurrentThreadId()
+
+        hkl = user32.LoadKeyboardLayoutW(EN_US_KLID, KLF_ACTIVATE)
+        if not hkl:
+            return False, f"LoadKeyboardLayoutW({EN_US_KLID}) failed: {ctypes.get_last_error()}"
+
+        attached = False
+        if target_thread and target_thread != current_thread:
+            attached = bool(user32.AttachThreadInput(current_thread, target_thread, True))
+
+        try:
+            activated = user32.ActivateKeyboardLayout(hkl, KLF_ACTIVATE)
+            posted = bool(user32.PostMessageW(hwnd, WM_INPUTLANGCHANGEREQUEST, 0, int(hkl)))
+        finally:
+            if attached:
+                user32.AttachThreadInput(current_thread, target_thread, False)
+
+        time.sleep(0.25)
+        target_layout = int(user32.GetKeyboardLayout(target_thread) or 0)
+        current_layout = int(user32.GetKeyboardLayout(0) or 0)
+        target_lang = target_layout & 0xFFFF
+        current_lang = current_layout & 0xFFFF
+
+        if target_lang == EN_US_LANGID or current_lang == EN_US_LANGID:
+            return True, (
+                f"target_lang=0x{target_lang:04x}, current_lang=0x{current_lang:04x}, "
+                f"activated={int(activated or 0)}, posted={posted}, attached={attached}"
+            )
+
+        return False, (
+            f"無法確認已切到英文鍵盤。target_lang=0x{target_lang:04x}, "
+            f"current_lang=0x{current_lang:04x}, activated={int(activated or 0)}, "
+            f"posted={posted}, attached={attached}"
+        )
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
+
+
+def require_english_input_method(stage):
+    ok, detail = switch_to_english_input_method()
+    if ok:
+        return detail
+    raise_send_error(
+        "WIN-IME-001",
+        "輸入法不是英文",
+        "程式無法自動切換到英文鍵盤配置，所以已停止，避免中文輸入法攔截 Ctrl + V 或 Enter，造成空白發送或發不出去。\n\n"
+        "請先在 Windows 右下角語言列切到 ENG / English，再重新執行。\n\n"
+        "如果看不到 ENG，請到 Windows 設定新增 English 鍵盤配置。",
+        f"stage={stage}; {detail}"
+    )
+
+
 def set_clipboard_text_verified(text, retries=2):
     """寫入剪貼簿並讀回確認，避免空白或錯誤內容被貼出。"""
     for _ in range(retries):
@@ -610,6 +699,8 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                 line_detail
             )
         time.sleep(0.3)
+        progress_cb("⌨️ 正在切換英文輸入法...", "")
+        require_english_input_method("before_send_loop")
 
         for i in range(1, count + 1):
             if STOP_FLAG:
@@ -681,6 +772,8 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                     )
 
             if send_type in ('text', 'both'):
+                require_english_input_method(f"before_text_paste:{i}")
+
                 if not msg_text or not msg_text.strip():
                     raise_send_error(
                         "WIN-MSG-001",
@@ -722,6 +815,8 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                 time.sleep(0.4)
 
             if send_type in ('image', 'both'):
+                require_english_input_method(f"before_image_paste:{i}")
+
                 if copy_image_to_clipboard(img_path):
                     time.sleep(0.2)
                     pyautogui.hotkey('ctrl', 'v')
@@ -1521,7 +1616,8 @@ class LineAutoSenderApp:
             f"執行期間請不要碰滑鼠和鍵盤！\n"
             f"按下「確定」後有 2 秒準備時間。\n\n"
             f"請確保 LINE 好友列表已打開，\n"
-            f"且已點選一位好友（灰底狀態）。")
+            f"且已點選一位好友（灰底狀態）。\n\n"
+            f"程式會自動嘗試切到英文輸入法，避免中文輸入法攔截貼上或 Enter。")
         if not confirm: return
 
         self.sending = True
