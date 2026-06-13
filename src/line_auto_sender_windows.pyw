@@ -761,11 +761,11 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                 recipient_key = friend_name or ""
             if recipient_key:
                 duplicate_count = seen_customers.get(recipient_key, 0)
-                if duplicate_count >= 2:
+                if duplicate_count >= 1:
                     raise_send_error(
                         "WIN-DUP-001",
                         "重複發送保護",
-                        "偵測到同一位客戶已成功發送 2 次，程式已在第 3 次送出前停止。\n\n"
+                        "偵測到同一位客戶已成功發送 1 次，程式已在第 2 次送出前停止。\n\n"
                         f"客戶：{recipient_key}\n\n"
                         "請確認 LINE 是否沒有跳到下一位好友。",
                         f"recipient_key={recipient_key!r}, duplicate_count={duplicate_count}"
