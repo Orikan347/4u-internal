@@ -515,7 +515,178 @@ def copy_image_to_clipboard(image_path):
 
 
 def bring_line_to_front():
-    """將 LINE 視窗移到最前方"""
+    """將 LINE 視窗移到最前方。
+
+    舊版只靠 WScript AppActivate("LINE")，新版加錯誤碼後會把 AppActivate
+    回傳 False 當成硬錯誤；但 Windows 上 LINE 視窗標題可能不是剛好 "LINE"，
+    也可能被本程式「LINE 自動發訊息」的標題干擾。這裡先用 Win32 API
+    依 process/title 找真正的 LINE 視窗，再用 AppActivate 做最後備援。
+    """
+    details = []
+
+    if sys.platform.startswith('win'):
+        try:
+            from ctypes import wintypes
+
+            user32 = ctypes.WinDLL('user32', use_last_error=True)
+            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            SW_RESTORE = 9
+            ASFW_ANY = -1
+
+            EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+            user32.EnumWindows.argtypes = [EnumWindowsProc, wintypes.LPARAM]
+            user32.EnumWindows.restype = wintypes.BOOL
+            user32.IsWindowVisible.argtypes = [wintypes.HWND]
+            user32.IsWindowVisible.restype = wintypes.BOOL
+            user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+            user32.GetWindowTextLengthW.restype = ctypes.c_int
+            user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+            user32.GetWindowTextW.restype = ctypes.c_int
+            user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+            user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+            user32.GetForegroundWindow.restype = wintypes.HWND
+            user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+            user32.ShowWindow.restype = wintypes.BOOL
+            user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+            user32.SetForegroundWindow.restype = wintypes.BOOL
+            user32.BringWindowToTop.argtypes = [wintypes.HWND]
+            user32.BringWindowToTop.restype = wintypes.BOOL
+            user32.SetActiveWindow.argtypes = [wintypes.HWND]
+            user32.SetActiveWindow.restype = wintypes.HWND
+            user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+            user32.AttachThreadInput.restype = wintypes.BOOL
+            kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+            kernel32.OpenProcess.restype = wintypes.HANDLE
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            kernel32.CloseHandle.restype = wintypes.BOOL
+            kernel32.QueryFullProcessImageNameW.argtypes = [
+                wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)
+            ]
+            kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+            if hasattr(user32, 'AllowSetForegroundWindow'):
+                user32.AllowSetForegroundWindow.argtypes = [wintypes.DWORD]
+                user32.AllowSetForegroundWindow.restype = wintypes.BOOL
+
+            def window_text(hwnd):
+                length = user32.GetWindowTextLengthW(hwnd)
+                if length <= 0:
+                    return ""
+                buffer = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buffer, length + 1)
+                return buffer.value.strip()
+
+            def process_path(pid):
+                handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+                if not handle:
+                    return ""
+                try:
+                    size = wintypes.DWORD(1024)
+                    buffer = ctypes.create_unicode_buffer(size.value)
+                    if kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+                        return buffer.value
+                    return ""
+                finally:
+                    kernel32.CloseHandle(handle)
+
+            def is_own_window(title, exe_name):
+                title_l = title.lower()
+                exe_l = exe_name.lower()
+                return (
+                    "line 自動發訊息" in title_l
+                    or "line autosender" in title_l
+                    or exe_l in {"line_autosender.exe", "line自動發訊息.exe"}
+                )
+
+            def candidate_score(title, exe_name):
+                title_l = title.lower()
+                exe_l = exe_name.lower()
+                if is_own_window(title, exe_name):
+                    return 0
+
+                score = 0
+                if exe_l in {"line.exe", "lineapp.exe", "line.app.exe"}:
+                    score += 100
+                if title == "LINE":
+                    score += 80
+                elif title.startswith("LINE ") or title.startswith("LINE -") or title.startswith("LINE｜"):
+                    score += 50
+                elif "line" in title_l:
+                    score += 20
+                return score
+
+            candidates = []
+
+            @EnumWindowsProc
+            def enum_proc(hwnd, _lparam):
+                if not user32.IsWindowVisible(hwnd):
+                    return True
+                title = window_text(hwnd)
+                pid = wintypes.DWORD()
+                thread_id = user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                exe_path = process_path(pid.value) if pid.value else ""
+                exe_name = os.path.basename(exe_path)
+                score = candidate_score(title, exe_name)
+                if score:
+                    candidates.append({
+                        "score": score,
+                        "hwnd": hwnd,
+                        "title": title,
+                        "pid": pid.value,
+                        "thread_id": thread_id,
+                        "exe": exe_name,
+                        "path": exe_path,
+                    })
+                return True
+
+            user32.EnumWindows(enum_proc, 0)
+            candidates.sort(key=lambda item: item["score"], reverse=True)
+
+            if candidates:
+                target = candidates[0]
+                hwnd = target["hwnd"]
+                details.append(
+                    f"win32_candidate title={target['title']!r}, exe={target['exe']!r}, "
+                    f"pid={target['pid']}, score={target['score']}"
+                )
+
+                current_thread = kernel32.GetCurrentThreadId()
+                target_thread = target.get("thread_id") or 0
+                attached = False
+                if hasattr(user32, 'AllowSetForegroundWindow'):
+                    user32.AllowSetForegroundWindow(ASFW_ANY)
+
+                if target_thread and target_thread != current_thread:
+                    attached = bool(user32.AttachThreadInput(current_thread, target_thread, True))
+
+                try:
+                    user32.ShowWindow(hwnd, SW_RESTORE)
+                    user32.BringWindowToTop(hwnd)
+                    user32.SetActiveWindow(hwnd)
+                    set_ok = bool(user32.SetForegroundWindow(hwnd))
+                finally:
+                    if attached:
+                        user32.AttachThreadInput(current_thread, target_thread, False)
+
+                time.sleep(0.35)
+                foreground = user32.GetForegroundWindow()
+                foreground_title = window_text(foreground) if foreground else ""
+                details.append(
+                    f"foreground title={foreground_title!r}, set_ok={set_ok}, attached={attached}"
+                )
+
+                if foreground == hwnd or candidate_score(foreground_title, ""):
+                    return True, "; ".join(details)
+
+                details.append("Win32 could not confirm LINE became the foreground window")
+            else:
+                details.append("Win32 found no visible LINE window candidates")
+        except Exception as e:
+            details.append(f"win32_error={type(e).__name__}: {e}")
+
     try:
         proc = subprocess.run([
             'powershell', '-Command',
@@ -524,9 +695,15 @@ def bring_line_to_front():
             'Write-Output $ok'
         ], capture_output=True, text=True, timeout=5)
         time.sleep(0.3)
-        return proc.stdout.strip().lower() == 'true', (proc.stdout + proc.stderr).strip()
+        output = (proc.stdout + proc.stderr).strip()
+        foreground_title = get_foreground_window_title()
+        details.append(f"appactivate={output!r}, foreground={foreground_title!r}")
+        if proc.stdout.strip().lower() == 'true' and "LINE 自動發訊息" not in foreground_title:
+            return True, "; ".join(details)
+        return False, "; ".join(details)
     except Exception as e:
-        return False, str(e)
+        details.append(f"appactivate_error={type(e).__name__}: {e}")
+        return False, "; ".join(details)
 
 
 def switch_to_english_input_method():
