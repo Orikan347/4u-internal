@@ -30,6 +30,7 @@ import ctypes
 import subprocess
 import platform
 import traceback
+import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
 import tkinter as tk
@@ -296,6 +297,17 @@ def wait_for_title_return(chat_title, timeout=2):
         if current != chat_title:
             return
         time.sleep(0.1)
+
+
+def is_static_line_title(title):
+    """判斷 Windows LINE 是否使用不會隨聊天室改變的固定標題。"""
+    title = (title or "").strip()
+    if not title:
+        return False
+    title_l = title.lower()
+    if "line 自動發訊息" in title_l or "line autosender" in title_l:
+        return False
+    return title_l == "line" or title_l.startswith("line ")
 
 
 # ==========================================
@@ -809,8 +821,25 @@ def set_clipboard_text_verified(text, retries=2):
     return False
 
 
+def normalize_text_for_line_verify(text):
+    """LINE / Windows 剪貼簿偶爾會正規化換行或空白；驗證時允許等價空白。"""
+    text = "" if text is None else str(text)
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    text = text.replace('\u00a0', ' ').replace('\u3000', ' ')
+    text = text.replace('\u200b', '').replace('\ufeff', '')
+    text = re.sub(r'[ \t]+', ' ', text)
+    return text.rstrip('\n')
+
+
+def line_input_matches_expected(pasted_text, expected_text):
+    """貼上驗證：內容完全一致最佳；空白被 LINE 正規化時也視為安全通過。"""
+    if pasted_text == expected_text:
+        return True
+    return normalize_text_for_line_verify(pasted_text) == normalize_text_for_line_verify(expected_text)
+
+
 def paste_and_verify_line_input(expected_text, retries=2):
-    """貼上後讀回 LINE 輸入框內容；完全一致才允許 Enter 送出。"""
+    """貼上後讀回 LINE 輸入框內容；允許 LINE 正規化空白，但不得是空白內容。"""
     for _ in range(retries):
         if not set_clipboard_text_verified(expected_text):
             return False, "clipboard_write_failed"
@@ -826,11 +855,41 @@ def paste_and_verify_line_input(expected_text, retries=2):
         except Exception as e:
             return False, f"clipboard_read_failed: {e}"
 
-        if pasted_text == expected_text:
+        if not str(pasted_text).strip():
+            return False, "line_input_empty_after_paste"
+
+        if line_input_matches_expected(pasted_text, expected_text):
             return True, ""
 
         time.sleep(0.2)
-    return False, "line_input_verify_mismatch"
+    return False, (
+        "line_input_verify_mismatch: "
+        f"expected={expected_text[:80]!r}, pasted={str(pasted_text)[:80]!r}"
+    )
+
+
+def clear_clipboard_text_for_next_step():
+    """圖片送出後把剪貼簿改回文字格式，避免下一輪 Ctrl+V 重貼上一張圖片。"""
+    try:
+        pyperclip.copy("")
+        time.sleep(0.08)
+    except Exception:
+        pass
+
+
+def build_send_fingerprint(send_type, msg_text="", img_path=""):
+    """建立本輪發送內容指紋，用於同一聊天室內的重複內容防護。"""
+    parts = [f"type={send_type or ''}", f"text={msg_text or ''}"]
+    if img_path:
+        try:
+            stat = os.stat(img_path)
+            parts.append(f"image={os.path.abspath(img_path)}")
+            parts.append(f"image_size={stat.st_size}")
+            parts.append(f"image_mtime={int(stat.st_mtime)}")
+        except Exception:
+            parts.append(f"image={img_path}")
+    raw = "\n".join(parts)
+    return hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()
 
 
 # ==========================================
@@ -844,7 +903,9 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
     global STOP_FLAG
     STOP_FLAG = False
     sent = 0
-    seen_customers = {}
+    last_chat_title_sent = ""
+    last_send_fingerprint = ""
+    planned_send_fingerprint = build_send_fingerprint(send_type, msg_text, img_path)
 
     type_names = {'text': '純文字', 'image': '純圖片', 'both': '文字+圖片'}
     type_label = type_names.get(send_type, send_type)
@@ -886,9 +947,6 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             pct = int((i - 1) / count * 100)
             progress_cb(f"📊 {i-1}/{count} 完成（{pct}%）", f"正在準備第 {i} 位...")
 
-            # 記住進入聊天室前的視窗標題
-            old_title = get_foreground_window_title()
-
             line_ok, line_detail = bring_line_to_front()
             if not line_ok:
                 raise_send_error(
@@ -899,6 +957,22 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                 )
             time.sleep(0.15)
 
+            old_title = (get_foreground_window_title() or "").strip()
+            if (
+                last_chat_title_sent
+                and old_title == last_chat_title_sent
+                and planned_send_fingerprint == last_send_fingerprint
+            ):
+                raise_send_error(
+                    "WIN-DUP-001",
+                    "重複發送保護",
+                    "LINE 目前仍停在上一個已送出的聊天室，而且本次準備送出的內容和上一筆相同，程式已在同一視窗第 2 次送出前停止。\n\n"
+                    f"聊天室：{last_chat_title_sent}\n\n"
+                    "請先按 Esc 回到好友列表，確認已選到下一位好友後再重新執行。",
+                    f"old_title={old_title!r}, last_chat_title_sent={last_chat_title_sent!r}, "
+                    f"fingerprint={planned_send_fingerprint}"
+                )
+
             # 按 Enter 進入聊天室
             pyautogui.press('enter')
             time.sleep(0.3)
@@ -908,6 +982,24 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             new_title = wait_for_title_change(old_title, timeout=3)
             if new_title:
                 friend_name_raw = new_title
+            elif is_static_line_title(old_title):
+                time.sleep(0.8)
+                current_title = (get_foreground_window_title() or "").strip()
+                if is_static_line_title(current_title):
+                    friend_name_raw = ""
+                else:
+                    raise_send_error(
+                        "WIN-LINE-003",
+                        "沒有成功進入聊天室",
+                        "沒有成功進入聊天室，所以程式已停止，避免送錯人。\n\n"
+                        "請照這樣重新準備 LINE：\n"
+                        "1. 打開 LINE 電腦版並登入。\n"
+                        "2. 回到左側好友列表，不要停在搜尋框。\n"
+                        "3. 用滑鼠點一下第一位要發送的好友，讓他呈現選取狀態。\n"
+                        "4. 不要把 LINE 縮小或蓋住，再重新執行本程式。\n\n"
+                        "如果你原本已經在聊天室，請先按 Esc 回到好友列表再開始。",
+                        f"old_title={old_title!r}, current_title={current_title!r}"
+                    )
             else:
                 raise_send_error(
                     "WIN-LINE-003",
@@ -933,20 +1025,7 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             send_ok = True
             send_note = ""
 
-            recipient_key = (friend_name_raw or friend_name or "").strip()
-            if recipient_key.upper() == "LINE":
-                recipient_key = friend_name or ""
-            if recipient_key:
-                duplicate_count = seen_customers.get(recipient_key, 0)
-                if duplicate_count >= 1:
-                    raise_send_error(
-                        "WIN-DUP-001",
-                        "重複發送保護",
-                        "偵測到同一位客戶已成功發送 1 次，程式已在第 2 次送出前停止。\n\n"
-                        f"客戶：{recipient_key}\n\n"
-                        "請確認 LINE 是否沒有跳到下一位好友。",
-                        f"recipient_key={recipient_key!r}, duplicate_count={duplicate_count}"
-                    )
+            # 防重複誤發只擋「仍停在上一個聊天室視窗」；同名不同好友不再用名字字串擋。
 
             if send_type in ('text', 'both'):
                 require_english_input_method(f"before_text_paste:{i}")
@@ -989,7 +1068,7 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                     )
 
                 pyautogui.press('enter')
-                time.sleep(0.4)
+                time.sleep(0.55)
 
             if send_type in ('image', 'both'):
                 require_english_input_method(f"before_image_paste:{i}")
@@ -999,7 +1078,8 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                     pyautogui.hotkey('ctrl', 'v')
                     time.sleep(0.8)
                     pyautogui.press('enter')
-                    time.sleep(0.4)
+                    time.sleep(1.2)
+                    clear_clipboard_text_for_next_step()
                 else:
                     raise_send_error(
                         "WIN-IMG-001",
@@ -1008,22 +1088,22 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                         img_path
                     )
 
-            if recipient_key:
-                seen_customers[recipient_key] = seen_customers.get(recipient_key, 0) + 1
+            last_chat_title_sent = (friend_name_raw or "").strip()
+            last_send_fingerprint = planned_send_fingerprint
 
             # 離開聊天室
             pyautogui.press('escape')
-            time.sleep(0.15)
+            time.sleep(0.35)
 
             # ★ 等待標題回到好友列表
             if friend_name_raw:
-                wait_for_title_return(friend_name_raw, timeout=2)
+                wait_for_title_return(friend_name_raw, timeout=3)
             else:
-                time.sleep(0.3)
+                time.sleep(0.8)
 
             # 移到下一個好友
             pyautogui.press('down')
-            time.sleep(0.15)
+            time.sleep(0.25)
 
             sent = i
 
@@ -1753,8 +1833,8 @@ class LineAutoSenderApp:
     def _validate(self):
         t = self.send_type.get()
         if t in ('text', 'both'):
-            self.msg_text = self.text_input.get('1.0', 'end-1c').strip()
-            if not self.msg_text:
+            self.msg_text = self.text_input.get('1.0', 'end-1c')
+            if not self.msg_text.strip():
                 messagebox.showwarning("提醒", "請輸入要發送的文字內容！")
                 return False
         if t in ('image', 'both'):
