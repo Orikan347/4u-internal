@@ -7,7 +7,7 @@ on:
       - line-autosender-windows-functional-test-20260714
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-windows-functional-test:
@@ -81,3 +81,14 @@ jobs:
         with:
           name: LINE自動發訊息_Windows功能測試版
           path: LINE自動發訊息_Windows功能測試版.zip
+
+      - name: Persist functional-test ZIP for CLI retrieval
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "LINE自動發訊息_Windows功能測試版.zip"
+          if (git diff --cached --quiet) { exit 0 }
+          git commit -m "ci: persist functional-test artifact [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
