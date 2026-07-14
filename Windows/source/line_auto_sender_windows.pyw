@@ -2207,27 +2207,41 @@ class SurveyWindow:
 # ==========================================
 def run_no_send_self_test():
     """Run only deterministic pure helpers; never create a UI or touch LINE."""
-    checks = {
-        "clean_name_returns_value": bool(clean_friend_name("LINE 小明｜測試")),
-        "fingerprint_stable": build_send_fingerprint("text", "假資料訊息")
-            == build_send_fingerprint("text", "假資料訊息"),
-        "fingerprint_distinguishes_content": build_send_fingerprint("text", "假資料訊息")
-            != build_send_fingerprint("text", "另一則假資料訊息"),
-        "release_channel_constant": APP_CHANNEL == "release-candidate",
-        "short_lease_contract_constant": PRODUCT_ID == "line_automation" and APP_ID == "line_automation_windows",
-    }
-    report = {
-        "suite": "LINE Windows EXE self-test no-send",
-        "overall": "PASS" if all(checks.values()) else "FAIL",
-        "checks": checks,
-        "real_data": False,
-        "external_actions": [],
-        "line_ui_opened": False,
-        "keyboard_or_clipboard_used": False,
-    }
+    try:
+        checks = {
+            "clean_name_returns_value": bool(clean_friend_name("LINE 小明｜測試")),
+            "fingerprint_stable": build_send_fingerprint("text", "假資料訊息")
+                == build_send_fingerprint("text", "假資料訊息"),
+            "fingerprint_distinguishes_content": build_send_fingerprint("text", "假資料訊息")
+                != build_send_fingerprint("text", "另一則假資料訊息"),
+            "release_channel_constant": APP_CHANNEL == "release-candidate",
+            "short_lease_contract_constant": PRODUCT_ID == "line_automation" and APP_ID == "line_automation_windows",
+        }
+        report = {
+            "suite": "LINE Windows EXE self-test no-send",
+            "overall": "PASS" if all(checks.values()) else "FAIL",
+            "checks": checks,
+            "real_data": False,
+            "external_actions": [],
+            "line_ui_opened": False,
+            "keyboard_or_clipboard_used": False,
+        }
+    except Exception as exc:
+        # A windowed PyInstaller build hides stderr. Persist only a bounded,
+        # non-sensitive diagnostic so the CI gate can explain a failed test.
+        report = {
+            "suite": "LINE Windows EXE self-test no-send",
+            "overall": "FAIL",
+            "error_type": type(exc).__name__,
+            "error": str(exc)[:500],
+            "real_data": False,
+            "external_actions": [],
+            "line_ui_opened": False,
+            "keyboard_or_clipboard_used": False,
+        }
     report_path = os.environ.get("LINE_SELF_TEST_REPORT", "")
     if report_path:
-        Path(report_path).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        Path(report_path).write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
     return 0 if report["overall"] == "PASS" else 1
 
 

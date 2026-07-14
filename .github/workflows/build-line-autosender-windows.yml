@@ -55,7 +55,9 @@ jobs:
         run: |
           $env:LINE_SELF_TEST_REPORT = (Join-Path (Get-Location) "windows_exe_no_send_self_test.json")
           & "Windows/source/dist/LINE_AutoSender.exe" "--self-test-no-send"
-          if ($LASTEXITCODE -ne 0) { throw "Windows EXE no-send self-test failed" }
+          $selfTestExitCode = $LASTEXITCODE
+          if (Test-Path $env:LINE_SELF_TEST_REPORT) { Get-Content -Raw $env:LINE_SELF_TEST_REPORT }
+          if ($selfTestExitCode -ne 0) { throw "Windows EXE no-send self-test failed" }
           $report = Get-Content -Raw $env:LINE_SELF_TEST_REPORT | ConvertFrom-Json
           if ($report.overall -ne "PASS" -or $report.real_data -ne $false -or $report.line_ui_opened -ne $false -or $report.keyboard_or_clipboard_used -ne $false -or @($report.external_actions).Count -ne 0) {
             throw "Windows EXE self-test report violates no-send boundary"
