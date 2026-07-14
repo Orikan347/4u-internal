@@ -52,7 +52,7 @@ jobs:
           # This console sibling is CI diagnostics only. It loads the same
           # bundled .pyw source, never enters the private archive, and makes a
           # pre-UI startup error visible instead of hiding it behind runw.exe.
-          pyinstaller --onefile --console --name "LINE_AutoSenderSelfTest" --clean --noconfirm --add-data "line_auto_sender_windows.pyw;." --add-data "gsheet_helper.py;." "../run_windows_exe_self_test.py"
+          pyinstaller --onefile --console --name "LINE_AutoSenderSelfTest" --clean --noconfirm --add-data "line_auto_sender_windows.pyw;." --add-data "gsheet_helper.py;." --hidden-import webbrowser --hidden-import tkinter --hidden-import pyautogui --hidden-import pyperclip --hidden-import PIL --hidden-import gsheet_helper "../run_windows_exe_self_test.py"
 
       - name: EXE self-test (no send)
         shell: pwsh
