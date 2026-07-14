@@ -1,0 +1,13 @@
+{
+  "license_type": "functional-test",
+  "channel": "functional-test",
+  "license_key": "FUNCTIONAL-TEST-20260713",
+  "email": "functional-test@example.invalid",
+  "product_id": "line_automation",
+  "platform": "windows",
+  "device_id": "functional-test-windows-20260713",
+  "lease_token": "FUNCTIONAL-TEST-LEASE-WINDOWS-20260713",
+  "lease_expires_at": "2026-07-14T23:59:59+08:00",
+  "verified_online": true,
+  "verified_at": "2026-07-13T00:00:00Z"
+}
