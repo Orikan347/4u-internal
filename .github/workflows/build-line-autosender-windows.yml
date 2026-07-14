@@ -34,7 +34,7 @@ jobs:
       - name: Pre-build safety checks
         shell: pwsh
         run: |
-          python -m py_compile Windows/source/line_auto_sender_windows.pyw Windows/source/gsheet_helper.py
+          python -m py_compile Windows/source/line_auto_sender_windows.pyw Windows/source/gsheet_helper.py Windows/run_windows_exe_self_test.py
           python Windows/verify_windows_no_send_preflight.py Windows/source/line_auto_sender_windows.pyw Windows/source/gsheet_helper.py
           $source = Get-Content -Raw "Windows/source/line_auto_sender_windows.pyw"
           $helper = Get-Content -Raw "Windows/source/gsheet_helper.py"
@@ -49,10 +49,10 @@ jobs:
         run: |
           cd Windows/source
           pyinstaller --onefile --windowed --name "LINE_AutoSender" --clean --noconfirm "line_auto_sender_windows.pyw"
-          # This console sibling is CI diagnostics only. It is built from the
-          # same source, never archived, and makes a pre-UI startup error
-          # visible to the runner instead of hiding it behind runw.exe.
-          pyinstaller --onefile --console --name "LINE_AutoSenderSelfTest" --clean --noconfirm "line_auto_sender_windows.pyw"
+          # This console sibling is CI diagnostics only. It loads the same
+          # bundled .pyw source, never enters the private archive, and makes a
+          # pre-UI startup error visible instead of hiding it behind runw.exe.
+          pyinstaller --onefile --console --name "LINE_AutoSenderSelfTest" --clean --noconfirm --add-data "line_auto_sender_windows.pyw;." --add-data "gsheet_helper.py;." "../run_windows_exe_self_test.py"
 
       - name: EXE self-test (no send)
         shell: pwsh
