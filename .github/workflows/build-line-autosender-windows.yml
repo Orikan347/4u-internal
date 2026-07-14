@@ -49,12 +49,16 @@ jobs:
         run: |
           cd Windows/source
           pyinstaller --onefile --windowed --name "LINE_AutoSender" --clean --noconfirm "line_auto_sender_windows.pyw"
+          # This console sibling is CI diagnostics only. It is built from the
+          # same source, never archived, and makes a pre-UI startup error
+          # visible to the runner instead of hiding it behind runw.exe.
+          pyinstaller --onefile --console --name "LINE_AutoSenderSelfTest" --clean --noconfirm "line_auto_sender_windows.pyw"
 
       - name: EXE self-test (no send)
         shell: pwsh
         run: |
           $env:LINE_SELF_TEST_REPORT = (Join-Path (Get-Location) "windows_exe_no_send_self_test.json")
-          & "Windows/source/dist/LINE_AutoSender.exe" "--self-test-no-send"
+          & "Windows/source/dist/LINE_AutoSenderSelfTest.exe" "--self-test-no-send"
           $selfTestExitCode = $LASTEXITCODE
           if (Test-Path $env:LINE_SELF_TEST_REPORT) { Get-Content -Raw $env:LINE_SELF_TEST_REPORT }
           if ($selfTestExitCode -ne 0) { throw "Windows EXE no-send self-test failed" }
@@ -62,6 +66,7 @@ jobs:
           if ($report.overall -ne "PASS" -or $report.real_data -ne $false -or $report.line_ui_opened -ne $false -or $report.keyboard_or_clipboard_used -ne $false -or @($report.external_actions).Count -ne 0) {
             throw "Windows EXE self-test report violates no-send boundary"
           }
+          Remove-Item "Windows/source/dist/LINE_AutoSenderSelfTest.exe" -Force
 
       - name: Create private candidate archive
         shell: pwsh
