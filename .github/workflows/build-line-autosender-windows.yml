@@ -1,15 +1,10 @@
-name: Build LINE Auto Sender Windows EXE
+name: Build private LINE Auto Sender Windows candidate
 
 on:
-  push:
-    branches:
-      - line-autosender-windows-build
-    paths-ignore:
-      - "artifact-output/**"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-windows-exe:
@@ -30,47 +25,97 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyautogui pyperclip Pillow pyinstaller
 
+      - name: Pre-build safety checks
+        shell: pwsh
+        run: |
+          python -m py_compile Windows/source/line_auto_sender_windows.pyw Windows/source/gsheet_helper.py
+          python Windows/verify_windows_no_send_preflight.py Windows/source/line_auto_sender_windows.pyw Windows/source/gsheet_helper.py
+          $source = Get-Content -Raw "Windows/source/line_auto_sender_windows.pyw"
+          $helper = Get-Content -Raw "Windows/source/gsheet_helper.py"
+          foreach ($token in @("ORIKAN_TX_2024", "script.google.com/macros", "verify_license", "PERMANENT-*", "SUB-*")) {
+            if ($source.Contains($token) -or $helper.Contains($token)) { throw "Forbidden legacy or offline-auth token: $token" }
+          }
+          if (Test-Path "Windows/source/gsheet_config.json") { throw "gsheet_config.json must not be packaged" }
+          if (Test-Path "Windows/source/license.json") { throw "license.json must not be packaged" }
+
       - name: Build EXE
         shell: pwsh
         run: |
-          cd src
-          pyinstaller --onefile --windowed --name "LINE_AutoSender" --add-data "gsheet_helper.py;." --add-data "gsheet_config.json;." --clean --noconfirm "line_auto_sender_windows.pyw"
+          cd Windows/source
+          pyinstaller --onefile --windowed --name "LINE_AutoSender" --clean --noconfirm "line_auto_sender_windows.pyw"
 
-      - name: Create final customer package
+      - name: EXE self-test (no send)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "final_package/LINE自動發訊息_Windows正式客戶版" | Out-Null
-          Copy-Item "src/dist/LINE_AutoSender.exe" "final_package/LINE自動發訊息_Windows正式客戶版/LINE_AutoSender.exe"
-          Copy-Item "Windows使用說明書.pdf" "final_package/LINE自動發訊息_Windows正式客戶版/Windows使用說明書.pdf"
-          Compress-Archive -Path "final_package/LINE自動發訊息_Windows正式客戶版" -DestinationPath "LINE自動發訊息_Windows正式客戶版.zip" -Force
+          $env:LINE_SELF_TEST_REPORT = (Join-Path (Get-Location) "windows_exe_no_send_self_test.json")
+          & "Windows/source/dist/LINE_AutoSender.exe" "--self-test-no-send"
+          if ($LASTEXITCODE -ne 0) { throw "Windows EXE no-send self-test failed" }
+          $report = Get-Content -Raw $env:LINE_SELF_TEST_REPORT | ConvertFrom-Json
+          if ($report.overall -ne "PASS" -or $report.real_data -ne $false -or $report.line_ui_opened -ne $false -or $report.keyboard_or_clipboard_used -ne $false -or @($report.external_actions).Count -ne 0) {
+            throw "Windows EXE self-test report violates no-send boundary"
+          }
+
+      - name: Create private candidate archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "private_candidate/LINE自動發訊息_Windows候選版" | Out-Null
+          Copy-Item "Windows/source/dist/LINE_AutoSender.exe" "private_candidate/LINE自動發訊息_Windows候選版/LINE_AutoSender.exe"
+          $manifest = [ordered]@{
+            schema_version = "1.0"
+            candidate_id = "DA-LINE-WINDOWS-${{ github.run_id }}"
+            product_id = "line_automation"
+            status = "PRIVATE_CANDIDATE_NOT_FOR_DELIVERY"
+            formal_output_allowed = $false
+            customer_delivery_allowed = $false
+            scope = "Windows desktop LINE automation; no Official Account or Messaging API"
+            artifacts = [ordered]@{
+              exe_sha256 = (Get-FileHash "Windows/source/dist/LINE_AutoSender.exe" -Algorithm SHA256).Hash.ToLower()
+              source_sha256 = (Get-FileHash "Windows/source/line_auto_sender_windows.pyw" -Algorithm SHA256).Hash.ToLower()
+              helper_sha256 = (Get-FileHash "Windows/source/gsheet_helper.py" -Algorithm SHA256).Hash.ToLower()
+            }
+            external_actions_executed = @()
+            verification = [ordered]@{
+              source_compile = "PASS"
+              exe_no_send_self_test = "PASS_WINDOWS_RUNNER"
+              real_windows_line_gui = "PENDING_WINDOWS_ENVIRONMENT"
+              signing = "PENDING_OWNER_ACTION"
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 6 | Set-Content "private_candidate/LINE自動發訊息_Windows候選版/CANDIDATE_MANIFEST.json" -Encoding utf8
+          Compress-Archive -Path "private_candidate/LINE自動發訊息_Windows候選版" -DestinationPath "LINE自動發訊息_Windows候選版.zip" -Force
 
       - name: Verify package
         shell: pwsh
         run: |
-          if (!(Test-Path "src/dist/LINE_AutoSender.exe")) { throw "EXE not found" }
-          if (!(Test-Path "LINE自動發訊息_Windows正式客戶版.zip")) { throw "Final package not found" }
-          Get-ChildItem "final_package/LINE自動發訊息_Windows正式客戶版"
+          if (!(Test-Path "Windows/source/dist/LINE_AutoSender.exe")) { throw "EXE not found" }
+          if (!(Test-Path "LINE自動發訊息_Windows候選版.zip")) { throw "Candidate archive not found" }
+          if (!(Test-Path "private_candidate/LINE自動發訊息_Windows候選版/CANDIDATE_MANIFEST.json")) { throw "Candidate manifest not found" }
+          $manifest = Get-Content -Raw "private_candidate/LINE自動發訊息_Windows候選版/CANDIDATE_MANIFEST.json" | ConvertFrom-Json
+          if ($manifest.status -ne "PRIVATE_CANDIDATE_NOT_FOR_DELIVERY") { throw "Candidate status is not private" }
+          if ($manifest.formal_output_allowed -ne $false -or $manifest.customer_delivery_allowed -ne $false) { throw "Candidate delivery gate is not closed" }
+          $candidate = "private_candidate/LINE自動發訊息_Windows候選版"
+          $allowedNames = @("LINE_AutoSender.exe", "CANDIDATE_MANIFEST.json")
+          $candidateNames = Get-ChildItem -File -Recurse $candidate | ForEach-Object { $_.FullName.Substring($candidate.Length + 1).Replace('\', '/') }
+          foreach ($name in $candidateNames) {
+            if ($name -notin $allowedNames) { throw "Unexpected candidate package file: $name" }
+          }
+          if ("LINE_AutoSender.exe" -notin $candidateNames -or "CANDIDATE_MANIFEST.json" -notin $candidateNames) { throw "Candidate package is incomplete" }
+          $exeHash = (Get-FileHash "$candidate/LINE_AutoSender.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($manifest.artifacts.exe_sha256 -ne $exeHash) { throw "EXE hash does not match manifest" }
+          $signature = Get-AuthenticodeSignature "$candidate/LINE_AutoSender.exe"
+          if ($signature.Status -ne "NotSigned") { throw "Private candidate must not claim formal Authenticode signing: $($signature.Status)" }
+          Expand-Archive -Path "LINE自動發訊息_Windows候選版.zip" -DestinationPath "package_probe" -Force
+          $probeRoot = "package_probe/LINE自動發訊息_Windows候選版"
+          $probeNames = Get-ChildItem -File -Recurse $probeRoot | ForEach-Object { $_.FullName.Substring((Resolve-Path $probeRoot).Path.Length + 1).Replace('\', '/') }
+          if ((Compare-Object $candidateNames $probeNames)) { throw "ZIP content differs from candidate directory" }
+          $probeManifest = Get-Content -Raw "$probeRoot/CANDIDATE_MANIFEST.json" | ConvertFrom-Json
+          if ($probeManifest.status -ne "PRIVATE_CANDIDATE_NOT_FOR_DELIVERY" -or $probeManifest.formal_output_allowed -ne $false -or $probeManifest.customer_delivery_allowed -ne $false) { throw "Expanded candidate manifest opens the delivery gate" }
+          $probeExeHash = (Get-FileHash "$probeRoot/LINE_AutoSender.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($probeManifest.artifacts.exe_sha256 -ne $probeExeHash -or $manifest.artifacts.exe_sha256 -ne $probeExeHash) { throw "Expanded candidate EXE hash does not match manifest" }
+          Get-ChildItem $candidate
 
-      - name: Commit final package back to branch
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path "artifact-output" | Out-Null
-          Copy-Item "LINE自動發訊息_Windows正式客戶版.zip" "artifact-output/LINE自動發訊息_Windows正式客戶版.zip" -Force
-          Copy-Item "src/dist/LINE_AutoSender.exe" "artifact-output/LINE_AutoSender.exe" -Force
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifact-output/LINE自動發訊息_Windows正式客戶版.zip artifact-output/LINE_AutoSender.exe
-          git commit -m "Add built Windows customer package" || echo "No changes to commit"
-          git push origin HEAD:line-autosender-windows-build
-
-      - name: Upload final package
+      - name: Upload private candidate archive
         uses: actions/upload-artifact@v4
         with:
-          name: LINE自動發訊息_Windows正式客戶版
-          path: LINE自動發訊息_Windows正式客戶版.zip
-
-      - name: Upload exe only
-        uses: actions/upload-artifact@v4
-        with:
-          name: LINE_AutoSender_exe_only
-          path: src/dist/LINE_AutoSender.exe
+          name: LINE自動發訊息_Windows候選版
+          path: LINE自動發訊息_Windows候選版.zip
