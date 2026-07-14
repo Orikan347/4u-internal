@@ -2,6 +2,12 @@ name: Build private LINE Auto Sender Windows candidate
 
 on:
   workflow_dispatch:
+  # Controlled one-time runner trigger. Source edits alone never start a build.
+  push:
+    branches:
+      - line-autosender-windows-functional-test-20260714
+    paths:
+      - ".github/workflows/trigger-line-windows-runner-20260714"
 
 permissions:
   contents: read
