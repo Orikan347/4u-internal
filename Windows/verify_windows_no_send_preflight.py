@@ -63,7 +63,10 @@ def main() -> int:
         "real_data": False,
         "external_actions": [],
         "results": results,
-    }, ensure_ascii=False, indent=2))
+    # GitHub-hosted Windows runners may use a legacy cp1252 console. Keep the
+    # machine-readable preflight report ASCII so a passing Chinese UI check
+    # cannot fail before the EXE build starts.
+    }, ensure_ascii=True, indent=2))
     return 0 if overall == "PASS" else 1
 
 
