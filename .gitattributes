@@ -1,0 +1,6 @@
+# Keep release-security byte hashes stable on Windows runners.
+src/*.py text eol=lf
+src/*.pyw text eol=lf
+release_evidence/*.json text eol=lf
+.github/workflows/*.yml text eol=lf
+.github/workflows/*.yaml text eol=lf
