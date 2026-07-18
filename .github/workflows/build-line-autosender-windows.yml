@@ -131,8 +131,9 @@ jobs:
           if ($manifest.app_id -ne "line_automation_windows" -or $manifest.client_id -ne "deal_alliance_line_windows" -or $manifest.release_id -ne "DA-LINE-WINDOWS-20260717-8000" -or $manifest.pkce -ne "S256") { throw "Candidate OAuth V2 binding is incomplete" }
           if ($manifest.gates.formal_registry_allowed -ne $false -or $manifest.gates.customer_delivery_allowed -ne $false -or $manifest.gates.protected_download_allowed -ne $false) { throw "Candidate delivery gate is not closed" }
           $candidate = "private_candidate/LINE自動發訊息_Windows候選版"
+          $candidateRoot = (Resolve-Path $candidate).Path
           $allowedNames = @("LINE_AutoSender.exe", "CANDIDATE_MANIFEST.json", "SBOM.cdx.json", "Windows使用說明書.pdf")
-          $candidateNames = Get-ChildItem -File -Recurse $candidate | ForEach-Object { $_.FullName.Substring($candidate.Length + 1).Replace('\', '/') }
+          $candidateNames = Get-ChildItem -File -Recurse $candidateRoot | ForEach-Object { $_.FullName.Substring($candidateRoot.Length + 1).Replace('\', '/') }
           foreach ($name in $candidateNames) {
             if ($name -notin $allowedNames) { throw "Unexpected candidate package file: $name" }
           }
