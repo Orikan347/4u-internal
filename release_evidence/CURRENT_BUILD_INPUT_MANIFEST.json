@@ -1,0 +1,85 @@
+{
+  "schema_version": "line_windows_current_release_build_input_v1",
+  "status": "READY_FOR_CONTROLLED_WINDOWS_UNSIGNED_BUILD",
+  "stage": "PENDING_RELEASE_SECURITY",
+  "reservation": {
+    "reservation_id": "DA-RID-LINE-WINDOWS-PRIVATE-20260717-01",
+    "allocation_contract_sha256": "249872f189d14cea7a33ac0910159c036f5ac7cc141ff0d3d1c69748bcbc4b4b",
+    "release_id": "DA-LINE-WINDOWS-20260717-8000",
+    "version": "8.0.0",
+    "allocation_state": "IDENTITY_ALLOCATED_UNSIGNED_ARTIFACT_PREFLIGHT_BINARY_PACKAGE_SBOM_PENDING"
+  },
+  "identity": {
+    "app_id": "line_automation_windows",
+    "client_id": "deal_alliance_line_windows",
+    "product_id": "line_automation",
+    "platform": "windows",
+    "callback": "dealalliance-line-windows://handoff",
+    "pkce": "S256",
+    "authorization_contract_version": "2026-07-15-oauth-v2-candidate"
+  },
+  "source": {
+    "template_source_sha256": "116dcd7f89a933029f054f83ec90dbc94ea100fe369b22796652aa0c12d6e3c0",
+    "bound_source_sha256": "8a27557bbfed371391a3ec648ff596c27a6ab2e8daf18bcd1f02077c8aa101c4",
+    "helper_sha256": "29fd73ca9c347aa6f7f20ccfb21aa495f7764131565603d62125a25aa5017844",
+    "binding_manifest_sha256": "26cd0e1945a98f23f9a6da523380a95e360b6e6bebfbaf8fe48953cdadb0cbd6"
+  },
+  "pipeline": {
+    "workflow_sha256": "d518772c4c1b37cdc6d1fa2338ef596c9ed7857f3bb4f76165c52dabe0fb03b1",
+    "allocation_evidence_sha256": "15d6e4c773b1db1857fd028c70ce8d1cced07d49fbae1ee489c62edb347cc709",
+    "allocation_verifier_sha256": "8bceb1c1683f7ba8de8a1a26fab07fc7e81d5ed8cbf92970e881a0d708c5573b",
+    "create_evidence_script_sha256": "bc6d9c46f38066ea98639b738368e7f701be7b4f3448d591cd1b64ac4990a1a1",
+    "finalize_evidence_script_sha256": "29ca9dc76c0ebcfbc9a6a7de162c1c5e6c84c3ac72e77c8a55b1ad665d2f866e",
+    "artifact_verifier_sha256": "a774a6e6e474bc28bf42bdaca30f4aaccc928be9a479251de57127c68ffec8a6",
+    "required_outputs": [
+      "LINE_AutoSender.exe",
+      "LINE自動發訊息_Windows候選版.zip",
+      "SBOM.cdx.json",
+      "CANDIDATE_MANIFEST.json",
+      "WINDOWS_PRIVATE_CANDIDATE_EVIDENCE.json"
+    ],
+    "current_host_can_build_windows_exe": false,
+    "controlled_windows_runner_required": true,
+    "push_executed": false,
+    "dispatch_executed": false,
+    "build_executed": false
+  },
+  "oauth_provider": {
+    "proposal_sha256": "aac95f61d94f5863b2a3bf4efe9337cd032b6a9d5ebb0c92d3c436ec604318f9",
+    "provider_readback_contract_sha256": "03253b867c3faacee68cb0f472de0445c932c164a0db3d1980f11e82f6e2200c",
+    "authorization_contract_sha256": "56cd33ffab56d07ab5f3a544b8a110490fe11aabbe62e76461b56b4e526bbb3e",
+    "staging_identity_contract_sha256": "89e8ea0af2015ab44d37c1817abac13ee11006906a898ca210285478a3d03e05",
+    "provider_status": "STAGING_OAUTH_READBACK_PASS",
+    "staging_identity_only": true,
+    "formal_release_registry_rows": 0
+  },
+  "artifact_hashes": {
+    "binary_sha256": null,
+    "package_sha256": null,
+    "sbom_sha256": null,
+    "candidate_manifest_sha256": null
+  },
+  "historical_artifacts_forbidden": {
+    "remote_source_sha256": "cb4f02a8f43ab7aedd9f2337d628350ff4225a4bb94d820360409f64e8261ad2",
+    "remote_helper_sha256": "4949e9db5c72c470fceff9f659211674283af0a603ee8730cb90da6f2d181d54",
+    "remote_exe_sha256": "3bf6119fea66989703b2bede06b2a426c62f5afac61a1c2c7a01f02cd6575ac8",
+    "remote_package_sha256": "7fd3f04da99094c97dc9d476f0eee3c52916b9f4a0727e47f4c326b1600b84a5"
+  },
+  "no_send": {
+    "fake_pipeline_e2e_required": true,
+    "messages_sent": 0,
+    "send_attempts": 0,
+    "real_data": false,
+    "line_opened": false,
+    "external_actions": []
+  },
+  "delivery": {
+    "formal_registry_allowed": false,
+    "upload_allowed": false,
+    "customer_delivery_allowed": false,
+    "protected_download_allowed": false,
+    "authenticode_complete": false,
+    "clean_windows_gui_no_send_complete": false
+  },
+  "next_gate": "CONTROLLED_WINDOWS_RUNNER_BUILD_EXACT_ALLOCATED_INPUT_AND_RETURN_BINARY_PACKAGE_SBOM_MANIFEST_HASHES"
+}

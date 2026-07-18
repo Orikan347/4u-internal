@@ -8,14 +8,14 @@ Orikan 李泰欣 | 亞洲銷冠系統架構導師
 IG @eintaixin
 
 v2.0 新增：
-1. 線上授權驗證（Google Sheet 授權白名單）
+1. 成交聯盟共用平台短效 lease 授權
 2. 視窗標題偵測（等待 LINE 狀態切換）
 3. 訊息範本（儲存/載入/挑選常用訊息）
-4. 逐筆發送紀錄（好友名稱 + 狀態 → Google Sheet）
+4. 逐筆發送紀錄（好友名稱 + 狀態 → 可選記錄服務）
 5. 進度顯示（好友名稱 + 百分比）
 
 需安裝套件（打包前）：pip install pyautogui pyperclip Pillow
-打包成 exe：pyinstaller --onefile --windowed --name "LINE自動發訊息" --add-data "gsheet_helper.py;." LINE自動發訊息_Windows.pyw
+打包成 exe：pyinstaller --onefile --windowed --name "LINE自動發訊息" LINE自動發訊息_Windows.pyw
 """
 
 import sys
@@ -31,6 +31,9 @@ import subprocess
 import platform
 import traceback
 import hashlib
+import hmac
+import secrets
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 import tkinter as tk
@@ -57,11 +60,14 @@ except ImportError:
     messagebox.showerror("缺少套件", "請先安裝 Pillow：\n\npip install Pillow")
     sys.exit(1)
 
-# Google Sheet 回寫模組（選用，透過 Apps Script Web App）
+# 可選記錄模組；授權由 LicenseAPIClient 獨立處理
 GSHEET_AVAILABLE = True
 try:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from gsheet_helper import GSheetLogger, load_gsheet_config, save_gsheet_config
+    from gsheet_helper import (
+        GSheetLogger, LicenseAPIClient, load_gsheet_config,
+        load_license_api_url, save_gsheet_config,
+    )
 except ImportError:
     GSHEET_AVAILABLE = False
 
@@ -77,7 +83,15 @@ IG_URL = "https://www.instagram.com/eintaixin?igsh=MWtnM2sxMnRvcHdoNg%3D%3D&utm_
 BRAND_NAME = "Orikan 李泰欣"
 BRAND_TITLE = "亞洲銷冠系統架構導師"
 APP_NAME = "LINE 自動發訊息"
-TRIAL_DAYS = 7
+APP_VERSION = "8.0.0"
+PRODUCT_ID = "line_automation"
+APP_ID = "line_automation_windows"
+CLIENT_ID = "deal_alliance_line_windows"
+# The controlled Windows build replaces this sentinel before PyInstaller.  An
+# unpacked source tree cannot open a browser or request an entitlement.
+RELEASE_ID = "__DEAL_ALLIANCE_RELEASE_ID_AT_BUILD__"
+APP_CALLBACK_SCHEME = "dealalliance-line-windows"
+APP_CHANNEL = "release-candidate"
 
 # 色彩
 C_BG = '#4A5568'
@@ -292,36 +306,35 @@ def wait_for_title_return(chat_title, timeout=2):
     start = time.time()
     while time.time() - start < timeout:
         if STOP_FLAG:
-            return
+            return False
         current = get_foreground_window_title()
-        if current != chat_title:
-            return
+        if current and current != chat_title:
+            return True
         time.sleep(0.1)
-
-
-def is_static_line_title(title):
-    """判斷 Windows LINE 是否使用不會隨聊天室改變的固定標題。"""
-    title = (title or "").strip()
-    if not title:
-        return False
-    title_l = title.lower()
-    if "line 自動發訊息" in title_l or "line autosender" in title_l:
-        return False
-    return title_l == "line" or title_l.startswith("line ")
+    return False
 
 
 # ==========================================
-# 授權管理（線上驗證 + 試用期）
+# 授權管理（線上驗證；未驗證不得進入發送流程）
 # ==========================================
 class LicenseManager:
-    """管理授權：線上驗證 → 本地快取"""
+    """管理 OAuth V2 短效工作階段；PKCE verifier 與 token 僅存程序記憶體。"""
 
     def __init__(self):
         self.data_dir = Path(os.environ.get('APPDATA', Path.home())) / 'LINE自動發訊息'
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.license_file = self.data_dir / 'license.json'
         self.data = self._load()
+        # Do not resume a legacy lease from disk.  The only persistent value is
+        # the random device identifier required for backend binding.
+        for key in ('lease_token', 'refresh_token', 'access_token', 'lease_expires_at',
+                    'verified_online', 'verified_at', 'verify_date', 'channel'):
+            self.data.pop(key, None)
+        self._save()
+        self.session = {}
+        self._oauth = {}
         self._gsheet_logger = None  # 延遲初始化
+        self._license_client = None  # 共用平台授權 client，與記錄服務分離
 
     def _load(self):
         try:
@@ -339,8 +352,110 @@ class LicenseManager:
         except Exception:
             pass
 
+    def get_device_id(self):
+        """產生並保存不含帳號資料的裝置識別碼。"""
+        existing = str(self.data.get('device_id', '')).strip()
+        if existing:
+            return existing
+        raw = f"windows|{uuid.getnode()}".encode("utf-8", "replace")
+        device_id = hashlib.sha256(raw).hexdigest()[:32]
+        self.data['device_id'] = device_id
+        self._save()
+        return device_id
+
+    def _callback_file(self):
+        path = self.data_dir / 'pending_oauth_callback.json'
+        try:
+            path.chmod(0o600)
+        except Exception:
+            pass
+        return path
+
+    def acquire_browser_handoff(self, timeout=300):
+        """OAuth V2 browser authorization with S256 PKCE and one-time callback."""
+        client = self._get_license_client()
+        if not client:
+            return False, "尚未設定成交聯盟授權服務。"
+        if not self._release_binding_is_valid():
+            return False, "WIN-AUTH-CONFIG-002：此候選尚未注入核准的 release_id，程式不會開啟瀏覽器。"
+
+        pending = self._callback_file()
+        try:
+            pending.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+        from urllib.parse import urlencode
+        verifier = secrets.token_urlsafe(64)
+        state = secrets.token_urlsafe(32)
+        challenge = self._s256_challenge(verifier)
+        self._oauth = {'state': state, 'code_verifier': verifier}
+        base = client.api_url.rstrip('/')
+        pair_url = base + '/oauth/authorize?' + urlencode({
+            'app_id': APP_ID,
+            'client_id': CLIENT_ID,
+            'release_id': RELEASE_ID,
+            'product_id': PRODUCT_ID,
+            'redirect_uri': f'{APP_CALLBACK_SCHEME}://handoff',
+            'state': state,
+            'device_id': self.get_device_id(),
+            'platform': 'windows',
+            'app_version': APP_VERSION,
+            'code_challenge': challenge,
+            'code_challenge_method': 'S256',
+        })
+        try:
+            webbrowser.open(pair_url)
+        except Exception:
+            return False, "無法開啟成交聯盟登入頁。"
+
+        for _ in range(timeout):
+            try:
+                if pending.exists():
+                    callback = json.loads(pending.read_text(encoding='utf-8'))
+                    pending.unlink(missing_ok=True)
+                    code = str(callback.get('code', '')).strip()
+                    callback_state = str(callback.get('state', '')).strip()
+                    expected_state = str(self._oauth.get('state', ''))
+                    verifier = str(self._oauth.get('code_verifier', ''))
+                    self._oauth = {}
+                    if not code or not verifier or not hmac.compare_digest(callback_state, expected_state):
+                        return False, "授權回呼內容為空。"
+                    result = client.exchange_authorization_code(
+                        code, verifier, APP_ID, CLIENT_ID, RELEASE_ID, PRODUCT_ID,
+                        f'{APP_CALLBACK_SCHEME}://handoff', self.get_device_id(), 'windows', APP_VERSION)
+                    if (result.get('status') == 'allowed' and result.get('access_token')
+                            and result.get('refresh_token') and result.get('expires_in_seconds') is not None):
+                        self.session = self._session_from_token_response(result)
+                        return True, "已透過成交聯盟登入完成授權。"
+                    return False, "成交聯盟拒絕目前方案、裝置或 App 版本。"
+            except Exception:
+                return False, "無法完成成交聯盟授權驗證，請確認網路後重試。"
+            time.sleep(1)
+        return False, "等待成交聯盟登入逾時，請重新開啟程式。"
+
+    @staticmethod
+    def _s256_challenge(verifier):
+        digest = hashlib.sha256(verifier.encode('ascii')).digest()
+        import base64
+        return base64.urlsafe_b64encode(digest).decode('ascii').rstrip('=')
+
+    @staticmethod
+    def _release_binding_is_valid():
+        import re
+        return bool(re.fullmatch(r'DA-LINE-WINDOWS-[0-9]{8}-[0-9]+', RELEASE_ID))
+
+    @staticmethod
+    def _session_from_token_response(result):
+        seconds = int(result.get('expires_in_seconds', 0))
+        return {
+            'access_token': str(result['access_token']),
+            'refresh_token': str(result['refresh_token']),
+            'expires_at': (datetime.now().astimezone() + timedelta(seconds=max(0, seconds))).isoformat(),
+        }
+
     def _get_logger(self):
-        """取得 GSheetLogger（用於線上授權驗證）"""
+        """取得可選的 GSheetLogger（只負責發送結果記錄，不負責授權）。"""
         if self._gsheet_logger is None and GSHEET_AVAILABLE:
             try:
                 config = load_gsheet_config()
@@ -352,138 +467,79 @@ class LicenseManager:
                 pass
         return self._gsheet_logger
 
-    def get_first_use_date(self):
-        """取得首次使用日期"""
-        if 'first_use' not in self.data:
-            self.data['first_use'] = datetime.now().isoformat()
-            self._save()
-        return datetime.fromisoformat(self.data['first_use'])
-
-    def get_remaining_days(self):
-        """取得剩餘試用天數"""
-        first_use = self.get_first_use_date()
-        expire = first_use + timedelta(days=TRIAL_DAYS)
-        remaining = (expire - datetime.now()).days
-        return max(0, remaining)
-
-    def is_trial_active(self):
-        """試用期是否仍有效"""
-        return self.get_remaining_days() > 0
+    def _get_license_client(self):
+        """取得成交聯盟共用平台授權 client；授權不再走 Google Sheet。"""
+        if self._license_client is None and GSHEET_AVAILABLE:
+            try:
+                # 授權端點不接受舊設定檔覆寫，避免殘留舊 Google／未核准 URL。
+                url = load_license_api_url()
+                if url:
+                    self._license_client = LicenseAPIClient(url)
+            except Exception:
+                pass
+        return self._license_client
 
     def is_licensed(self):
-        """是否有有效授權（訂閱 or 永久）"""
-        license_type = self.data.get('license_type', 'trial')
-        if license_type == 'permanent':
-            return True
-        if license_type == 'subscription':
-            expire_str = self.data.get('subscription_expire', '')
-            if expire_str:
-                try:
-                    expire = datetime.fromisoformat(expire_str)
-                    return datetime.now() < expire
-                except Exception:
-                    pass
+        """是否有只存在本程序的尚未到期工作階段。"""
+        if not self._release_binding_is_valid() or not self.session.get('access_token'):
+            return False
+        expire_str = self.session.get('expires_at', '')
+        if not expire_str:
+            return False
+        try:
+            expire = datetime.fromisoformat(expire_str.replace('Z', '+00:00'))
+            if expire.tzinfo:
+                from datetime import timezone
+                return datetime.now(timezone.utc) < expire
+            return datetime.now() < expire
+        except Exception:
+            return False
+
+    def _cache_is_usable(self):
+        """OAuth V2 不使用跨程序離線快取；後台拒絕即停止。"""
         return False
 
-    def activate_license(self, key):
-        """
-        啟用授權碼 — 優先線上驗證，線上不通時離線解析
-        """
-        key = key.strip().upper()
-        if not key:
-            return False, "請輸入授權碼"
-
-        # ===== 1. 線上驗證 =====
-        logger = self._get_logger()
-        if logger and logger.connected:
-            try:
-                valid, info = logger.verify_license(key)
-                if valid:
-                    lic_type = info.get("type", "permanent")
-                    expire = info.get("expire", "")
-                    customer = info.get("customer", "")
-
-                    # 通用延期碼：重設試用期（只能用一次）
-                    if lic_type == 'extend_trial':
-                        if self.data.get('extend_used'):
-                            return False, "延期碼只能使用一次，已使用過。\n如需繼續使用，請私訊 IG @eintaixin 取得授權碼"
-                        extend_days = info.get("days", 7)
-                        self.data['first_use'] = datetime.utcnow().isoformat()
-                        self.data['extend_used'] = True
-                        self.data.pop('license_type', None)
-                        self.data.pop('license_key', None)
-                        self._save()
-                        return True, f"試用已延長 {extend_days} 天！"
-
-                    self.data['license_type'] = lic_type
-                    self.data['license_key'] = key
-                    self.data['verified_online'] = True
-                    self.data['verify_date'] = datetime.now().isoformat()
-
-                    if lic_type == 'subscription' and expire:
-                        self.data['subscription_expire'] = expire
-
-                    self._save()
-
-                    if lic_type == 'permanent':
-                        msg = f"永久授權啟用成功！"
-                    else:
-                        msg = f"訂閱授權啟用成功！到期日：{expire}"
-                    if customer:
-                        msg += f"\n歡迎，{customer}！"
-                    return True, msg
-                else:
-                    reason = info.get("reason", "")
-                    if reason == "subscription_expired":
-                        return False, f"此授權碼已過期（{info.get('expire', '')}），請聯繫續約。"
-                    elif reason == "not_found":
-                        return False, "授權碼無效，請確認後重試。"
-                    else:
-                        return False, "授權碼驗證失敗，請確認後重試。"
-            except Exception:
-                pass  # 線上驗證失敗，改走離線
-
-        # ===== 2. 離線解析（備援）=====
-        if key.startswith('PERMANENT-'):
-            self.data['license_type'] = 'permanent'
-            self.data['license_key'] = key
-            self.data['verified_online'] = False
-            self._save()
-            return True, "永久授權啟用成功！（離線模式）"
-        elif key.startswith('SUB-'):
-            parts = key.split('-')
-            if len(parts) >= 5:
-                try:
-                    date_str = f"{parts[1]}-{parts[2]}-{parts[3]}"
-                    expire = datetime.fromisoformat(date_str)
-                    self.data['license_type'] = 'subscription'
-                    self.data['subscription_expire'] = expire.isoformat()
-                    self.data['license_key'] = key
-                    self.data['verified_online'] = False
-                    self._save()
-                    return True, f"訂閱授權啟用成功！到期日：{date_str}（離線模式）"
-                except Exception:
-                    pass
-
-        return False, "授權碼無效，請確認後重試。"
+    def refresh_lease(self):
+        """啟動／發送前向 App lease endpoint 重新驗證；不以本機快取放行。"""
+        if not self.is_licensed():
+            return False
+        client = self._get_license_client()
+        if not client:
+            # 沒有端點不是網路錯誤；不可把本機檔案當成線上驗證。
+            return False
+        try:
+            result = client.refresh_authorization(
+                self.session.get('refresh_token', ''), APP_ID, CLIENT_ID, RELEASE_ID,
+                PRODUCT_ID, self.get_device_id(), 'windows', APP_VERSION)
+        except Exception:
+            return False
+        if not (result.get('status') == 'allowed' and result.get('access_token')
+                and result.get('refresh_token') and result.get('expires_in_seconds') is not None):
+            self.session = {}
+            return False
+        self.session = self._session_from_token_response(result)
+        try:
+            license_result = client.authorize_app(
+                self.session['access_token'], APP_ID, CLIENT_ID, RELEASE_ID, PRODUCT_ID,
+                self.get_device_id(), 'windows', APP_VERSION)
+        except Exception:
+            self.session = {}
+            return False
+        if license_result.get('status') != 'allowed':
+            self.session = {}
+            return False
+        return self.is_licensed()
 
     def can_use(self):
         """是否可以使用程式"""
-        return self.is_licensed() or self.is_trial_active()
+        return self.refresh_lease()
 
     def get_status_text(self):
         """取得授權狀態說明"""
         if self.is_licensed():
-            lt = self.data.get('license_type', '')
-            if lt == 'permanent':
-                return "已授權（永久版）", C_GREEN
-            elif lt == 'subscription':
-                expire = self.data.get('subscription_expire', '')
-                return f"已授權（訂閱制，到期：{expire[:10]}）", C_GREEN
-        remaining = self.get_remaining_days()
-        if remaining > 0:
-            return f"試用期剩餘 {remaining} 天", C_ORANGE
-        return "試用期已到期", C_RED
+            expire = self.session.get('expires_at', '')
+            return f"已授權（短效憑證至：{expire}）", C_GREEN
+        return "尚未完成授權驗證", C_RED
 
 
 # ==========================================
@@ -522,6 +578,15 @@ def copy_image_to_clipboard(image_path):
         user32.SetClipboardData(CF_DIB, h_mem)
         user32.CloseClipboard()
         return True
+    except Exception:
+        return False
+
+
+def verify_image_clipboard():
+    """確認圖片剪貼簿仍保有 Windows 圖片格式，否則禁止貼上／Enter。"""
+    try:
+        user32 = ctypes.windll.user32
+        return any(bool(user32.IsClipboardFormatAvailable(fmt)) for fmt in (8, 17, 2))
     except Exception:
         return False
 
@@ -965,10 +1030,9 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             ):
                 raise_send_error(
                     "WIN-DUP-001",
-                    "重複發送保護",
-                    "LINE 目前仍停在上一個已送出的聊天室，而且本次準備送出的內容和上一筆相同，程式已在同一視窗第 2 次送出前停止。\n\n"
-                    f"聊天室：{last_chat_title_sent}\n\n"
-                    "請先按 Esc 回到好友列表，確認已選到下一位好友後再重新執行。",
+                    "恭喜你已發完全部，或發到重覆的人。",
+                    "LINE 沒有切到新的好友，程式已安全停止，避免重複發給上一位。\n\n"
+                    "若確認還有下一位，請先回到 LINE 好友列表、手動選好下一位，再重新建立預覽。",
                     f"old_title={old_title!r}, last_chat_title_sent={last_chat_title_sent!r}, "
                     f"fingerprint={planned_send_fingerprint}"
                 )
@@ -982,24 +1046,6 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             new_title = wait_for_title_change(old_title, timeout=3)
             if new_title:
                 friend_name_raw = new_title
-            elif is_static_line_title(old_title):
-                time.sleep(0.8)
-                current_title = (get_foreground_window_title() or "").strip()
-                if is_static_line_title(current_title):
-                    friend_name_raw = ""
-                else:
-                    raise_send_error(
-                        "WIN-LINE-003",
-                        "沒有成功進入聊天室",
-                        "沒有成功進入聊天室，所以程式已停止，避免送錯人。\n\n"
-                        "請照這樣重新準備 LINE：\n"
-                        "1. 打開 LINE 電腦版並登入。\n"
-                        "2. 回到左側好友列表，不要停在搜尋框。\n"
-                        "3. 用滑鼠點一下第一位要發送的好友，讓他呈現選取狀態。\n"
-                        "4. 不要把 LINE 縮小或蓋住，再重新執行本程式。\n\n"
-                        "如果你原本已經在聊天室，請先按 Esc 回到好友列表再開始。",
-                        f"old_title={old_title!r}, current_title={current_title!r}"
-                    )
             else:
                 raise_send_error(
                     "WIN-LINE-003",
@@ -1025,7 +1071,8 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             send_ok = True
             send_note = ""
 
-            # 防重複誤發只擋「仍停在上一個聊天室視窗」；同名不同好友不再用名字字串擋。
+            # 防重複以可觀測的聊天室標題與內容指紋 fail-closed；若兩位好友只呈現相同標題，
+            # 程式無法證明是不同聊天室，寧可停止也不冒險繼續。
 
             if send_type in ('text', 'both'):
                 require_english_input_method(f"before_text_paste:{i}")
@@ -1037,10 +1084,9 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                         "本次文字內容是空白，所以程式已停止，避免送出空白訊息。\n\n請重新輸入要發送的文字，再執行一次。"
                     )
 
-                if friend_name and add_name:
-                    final_msg = f"{friend_name}，{msg_text}"
-                else:
-                    final_msg = msg_text
+                # 與目前 Mac 功能驗收版一致：不自動把聊天室名稱插進內容，
+                # 避免誤將 LINE 標題當作姓名。
+                final_msg = msg_text
 
                 if not set_clipboard_text_verified(final_msg):
                     raise_send_error(
@@ -1075,6 +1121,13 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
 
                 if copy_image_to_clipboard(img_path):
                     time.sleep(0.2)
+                    if not verify_image_clipboard():
+                        raise_send_error(
+                            "WIN-CLIP-IMG-001",
+                            "圖片剪貼簿異常",
+                            "程式無法確認圖片仍在 Windows 剪貼簿，所以已停止，避免把空白或錯誤內容貼到 LINE。",
+                            img_path
+                        )
                     pyautogui.hotkey('ctrl', 'v')
                     time.sleep(0.8)
                     pyautogui.press('enter')
@@ -1097,7 +1150,13 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
 
             # ★ 等待標題回到好友列表
             if friend_name_raw:
-                wait_for_title_return(friend_name_raw, timeout=3)
+                if not wait_for_title_return(friend_name_raw, timeout=3):
+                    raise_send_error(
+                        "WIN-LINE-004",
+                        "LINE 沒有回到好友列表",
+                        "發送後程式沒有確認 LINE 已回到好友列表，所以已停止下一輪，避免把下一次 Enter 或 Down 操作留在錯誤聊天室。",
+                        f"chat_title={friend_name_raw!r}"
+                    )
             else:
                 time.sleep(0.8)
 
@@ -1247,9 +1306,9 @@ def make_brand_footer(parent):
 
 
 # ==========================================
-# 試用到期畫面
+# 尚未授權畫面
 # ==========================================
-class ExpiredWindow:
+class AuthorizationRequiredWindow:
     def __init__(self, license_mgr):
         self.license_mgr = license_mgr
         self.root = tk.Tk()
@@ -1258,59 +1317,29 @@ class ExpiredWindow:
         self.root.configure(bg=C_BG)
         self._center()
 
-        make_title_bar(self.root, "授權", self.root.destroy)
-
+        # 正式候選版唯一授權入口：瀏覽器登入成交聯盟，不再要求 Email／授權碼。
+        make_title_bar(self.root, "成交聯盟登入", self.root.destroy)
         body = tk.Frame(self.root, bg=C_BG)
-        body.pack(fill='both', expand=True, padx=25, pady=10)
-
-        tk.Label(body, text="試用期已到期",
+        body.pack(fill='both', expand=True, padx=25, pady=20)
+        tk.Label(body, text="請先登入成交聯盟",
                  font=("Microsoft JhengHei", 20, "bold"),
-                 fg=C_RED, bg=C_BG).pack(pady=(10, 5))
-
-        tk.Label(body, text="感謝您試用 LINE 自動發訊息！\n如需繼續使用，請輸入授權碼。",
-                 font=("Microsoft JhengHei", 11),
-                 fg=C_LIGHT, bg=C_BG, justify='center').pack(pady=(5, 15))
-
-        # 授權碼輸入
-        tk.Label(body, text="授權碼：",
-                 font=("Microsoft JhengHei", 10),
-                 fg=C_WHITE, bg=C_BG, anchor='w').pack(fill='x')
-
-        self.key_entry = tk.Entry(body, font=("Consolas", 12),
-                                   bg=C_BG_DARK, fg=C_WHITE,
-                                   insertbackground=C_WHITE, relief='flat')
-        self.key_entry.pack(fill='x', pady=(3, 10), ipady=6)
-
-        activate_btn = tk.Button(body, text="啟用授權碼",
-                                  font=("Microsoft JhengHei", 12, "bold"),
-                                  bg=C_GREEN, fg=C_WHITE, relief='flat',
-                                  padx=20, pady=6, command=self._activate)
-        activate_btn.pack(pady=(0, 5))
-
-        self.msg_label = tk.Label(body, text="",
-                                   font=("Microsoft JhengHei", 9),
-                                   fg=C_ORANGE, bg=C_BG)
-        self.msg_label.pack()
-
-        # 驗證中提示
-        self.verify_label = tk.Label(body, text="",
-                                      font=("Microsoft JhengHei", 8),
-                                      fg=C_DIM, bg=C_BG)
-        self.verify_label.pack()
-
-        # 問卷按鈕
-        survey_btn = tk.Button(body, text="📋 填寫回饋問卷（30秒）",
-                                font=("Microsoft JhengHei", 10),
-                                bg=C_ORANGE, fg=C_WHITE, relief='flat',
-                                padx=12, pady=4, command=self._open_survey)
-        survey_btn.pack(pady=(8, 3))
-
-        # 聯絡資訊
-        tk.Label(body, text="取得授權碼請私訊 IG 聯繫：",
-                 font=("Microsoft JhengHei", 10),
-                 fg=C_LIGHT, bg=C_BG).pack(pady=(5, 0))
-
+                 fg=C_GOLD, bg=C_BG).pack(pady=(20, 8))
+        tk.Label(body, text="程式會開啟成交聯盟後臺登入頁。\n登入成功後，授權會自動回到本程式。\n不需要輸入授權碼。",
+                 font=("Microsoft JhengHei", 11), fg=C_LIGHT,
+                 bg=C_BG, justify='center').pack(pady=(5, 20))
+        self.msg_label = tk.Label(body, text="準備開啟登入頁…",
+                                  font=("Microsoft JhengHei", 10),
+                                  fg=C_ORANGE, bg=C_BG)
+        self.msg_label.pack(pady=(0, 12))
+        tk.Button(body, text="開啟成交聯盟登入",
+                  font=("Microsoft JhengHei", 13, "bold"),
+                  bg=C_GREEN, fg=C_WHITE, relief='flat',
+                  padx=20, pady=8, command=self._begin).pack()
+        tk.Label(body, text="若瀏覽器已登入，完成後會自動核准目前裝置。",
+                 font=("Microsoft JhengHei", 9), fg=C_DIM,
+                 bg=C_BG).pack(pady=(12, 0))
         make_brand_footer(self.root)
+        self.root.after(300, self._begin)
 
     def _center(self):
         self.root.update_idletasks()
@@ -1318,22 +1347,25 @@ class ExpiredWindow:
         y = (self.root.winfo_screenheight() - 420) // 2
         self.root.geometry(f"+{x}+{y}")
 
-    def _open_survey(self):
-        SurveyWindow(source="trial_expired")
+    def _begin(self):
+        if getattr(self, '_working', False):
+            return
+        self._working = True
+        self.msg_label.config(text="已開啟瀏覽器，等待登入授權…", fg=C_ORANGE)
+        threading.Thread(target=self._handoff_worker, daemon=True).start()
 
-    def _activate(self):
-        self.verify_label.config(text="⏳ 正在驗證授權碼...", fg=C_ORANGE)
-        self.root.update()
-        key = self.key_entry.get()
-        success, msg = self.license_mgr.activate_license(key)
-        self.verify_label.config(text="")
-        if success:
-            messagebox.showinfo("成功", msg)
-            self.root.destroy()
-            app = LineAutoSenderApp(self.license_mgr)
-            app.run()
-        else:
+    def _handoff_worker(self):
+        success, msg = self.license_mgr.acquire_browser_handoff()
+        self.root.after(0, lambda: self._handoff_done(success, msg))
+
+    def _handoff_done(self, success, msg):
+        self._working = False
+        if not success:
             self.msg_label.config(text=msg, fg=C_RED)
+            return
+        self.root.destroy()
+        app = LineAutoSenderApp(self.license_mgr)
+        app.run()
 
     def run(self):
         self.root.mainloop()
@@ -1354,7 +1386,7 @@ class LineAutoSenderApp:
         self.send_type = tk.StringVar(value='text')
         self.msg_text = ''
         self.img_path = ''
-        self.count = 3
+        self.count = 1
         self.sending = False
         self.last_error_code = ""
         self.gsheet_logger = None
@@ -1425,6 +1457,11 @@ class LineAutoSenderApp:
                  font=("Microsoft JhengHei", 9),
                  fg=status_color, bg=C_BG).pack(anchor='w', padx=10)
 
+        tk.Label(main,
+                 text="  操作順序：填內容與重複次數 → 在 LINE 手動選第一位 → 建立預覽並最後確認",
+                 font=("Microsoft JhengHei", 9), fg=C_LIGHT, bg=C_BG,
+                 wraplength=500, justify='left').pack(anchor='w', padx=10, pady=(5, 2))
+
         # Step 1: 發送類型
         tk.Label(main, text="  選擇發送類型",
                  font=("Microsoft JhengHei", 12, "bold"),
@@ -1477,14 +1514,6 @@ class LineAutoSenderApp:
             relief='flat', padx=8, pady=8)
         self.text_input.pack(fill='x', pady=(0, 4))
 
-        self.add_name_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(self.text_frame, text="  👤 自動帶入對方名字（例如：王小明，你好...）",
-                       variable=self.add_name_var,
-                       font=("Microsoft JhengHei", 10),
-                       fg=C_LIGHT, bg=C_BG, selectcolor=C_BG_MID,
-                       activebackground=C_BG, activeforeground=C_WHITE
-                       ).pack(anchor='w', pady=(0, 8))
-
         # Step 3: 圖片選擇
         self.img_frame = tk.Frame(main, bg=C_BG)
 
@@ -1505,11 +1534,11 @@ class LineAutoSenderApp:
                                         fg=C_DIM, bg=C_BG)
         self.img_path_label.pack(side='left', padx=(10, 0))
 
-        # Step 4: 發送人數
+        # Step 4: 重複發送次數（不讀取或要求收件人名稱）
         count_frame = tk.Frame(main, bg=C_BG)
         count_frame.pack(fill='x', padx=10, pady=(8, 8))
 
-        tk.Label(count_frame, text="  發送人數",
+        tk.Label(count_frame, text="  重複發送次數",
                  font=("Microsoft JhengHei", 12, "bold"),
                  fg=C_WHITE, bg=C_BG).pack(side='left')
 
@@ -1518,10 +1547,10 @@ class LineAutoSenderApp:
                                      bg=C_BG_DARK, fg=C_WHITE,
                                      insertbackground=C_WHITE,
                                      relief='flat', justify='center')
-        self.count_entry.insert(0, '3')
+        self.count_entry.insert(0, '1')
         self.count_entry.pack(side='left', padx=(10, 5))
 
-        tk.Label(count_frame, text="人（建議先用 3 人測試）",
+        tk.Label(count_frame, text="次（請先以 1 次測試）",
                  font=("Microsoft JhengHei", 9),
                  fg=C_DIM, bg=C_BG).pack(side='left')
 
@@ -1567,7 +1596,7 @@ class LineAutoSenderApp:
         btn_frame = tk.Frame(main, bg=C_BG)
         btn_frame.pack(fill='x', padx=10, pady=(8, 5))
 
-        self.start_btn = tk.Button(btn_frame, text="  開始發送！",
+        self.start_btn = tk.Button(btn_frame, text="  建立預覽並最後確認",
                                     font=("Microsoft JhengHei", 14, "bold"),
                                     bg=C_GREEN, fg=C_WHITE, relief='flat',
                                     padx=18, pady=7, command=self._start_send)
@@ -1845,7 +1874,7 @@ class LineAutoSenderApp:
             self.count = int(self.count_entry.get().strip())
             if self.count <= 0: raise ValueError
         except ValueError:
-            messagebox.showwarning("提醒", "請輸入有效的發送人數！")
+            messagebox.showwarning("提醒", "請輸入有效的重複發送次數！")
             return False
         return True
 
@@ -1857,25 +1886,30 @@ class LineAutoSenderApp:
         names = {'text': '純文字', 'image': '純圖片', 'both': '文字+圖片'}
         preview_lines = [
             f"發送類型：{names[t]}",
-            f"發送人數：{self.count} 位",
+            f"重複發送次數：{self.count} 次",
         ]
         if t in ('text', 'both'):
             text_preview = self.msg_text[:220]
-            if self.add_name_var.get():
-                text_preview = f"對方名字，{text_preview}"
             preview_lines.extend(["", "文字預覽：", text_preview])
         if t in ('image', 'both'):
             preview_lines.extend(["", f"圖片：{os.path.basename(self.img_path)}"])
 
         confirm = messagebox.askokcancel(
-            "確認發送",
+            "建立預覽 → 最後確認",
             "\n".join(preview_lines) + "\n\n"
+            "這是最後確認；按下確定後才會開始操作 LINE。\n"
             f"執行期間請不要碰滑鼠和鍵盤！\n"
             f"按下「確定」後有 2 秒準備時間。\n\n"
             f"請確保 LINE 好友列表已打開，\n"
             f"且已點選一位好友（灰底狀態）。\n\n"
             f"程式會自動嘗試切到英文輸入法，避免中文輸入法攔截貼上或 Enter。")
         if not confirm: return
+
+        # 高風險動作前再 renew；平台拒絕時停在預覽後、開始操作 LINE 前。
+        if not self.license_mgr.refresh_lease():
+            messagebox.showerror("授權已失效",
+                                 "成交聯盟目前不允許這台裝置使用，程式沒有操作 LINE。")
+            return
 
         self.sending = True
         self.last_error_code = ""
@@ -1892,7 +1926,7 @@ class LineAutoSenderApp:
             target=send_messages,
             args=(t, self.msg_text, self.img_path, self.count,
                   self._update_progress, self._on_done, self.gsheet_logger,
-                  self.add_name_var.get(), self._show_error),
+                  False, self._show_error),
             daemon=True).start()
 
     def _stop_send(self):
@@ -2054,7 +2088,7 @@ class SurveyWindow:
                  font=("Microsoft JhengHei", 11, "bold"),
                  fg=C_WHITE, bg=C_BG).pack(anchor='w', **pad)
         self.q4_features = {}
-        for feat in ['定時排程發送', '自動帶入對方名字', '報表匯出', '更多訊息格式']:
+        for feat in ['定時排程發送', '報表匯出', '更多訊息格式']:
             var = tk.BooleanVar(value=False)
             self.q4_features[feat] = var
             tk.Checkbutton(body, text=f"  {feat}", variable=var,
@@ -2204,15 +2238,108 @@ class SurveyWindow:
 
 
 # ==========================================
+# EXE 自我不發送驗收（Windows runner 專用）
+# ==========================================
+def run_no_send_self_test():
+    """Run only deterministic pure helpers; never create a UI or touch LINE."""
+    checks = {
+        "clean_name_returns_value": bool(clean_friend_name("LINE 小明｜測試")),
+        "fingerprint_stable": build_send_fingerprint("text", "假資料訊息")
+            == build_send_fingerprint("text", "假資料訊息"),
+        "fingerprint_distinguishes_content": build_send_fingerprint("text", "假資料訊息")
+            != build_send_fingerprint("text", "另一則假資料訊息"),
+        "release_channel_constant": APP_CHANNEL == "release-candidate",
+        "short_lease_contract_constant": PRODUCT_ID == "line_automation" and APP_ID == "line_automation_windows",
+    }
+    report = {
+        "suite": "LINE Windows EXE self-test no-send",
+        "overall": "PASS" if all(checks.values()) else "FAIL",
+        "checks": checks,
+        "real_data": False,
+        "external_actions": [],
+        "line_ui_opened": False,
+        "keyboard_or_clipboard_used": False,
+    }
+    report_path = os.environ.get("LINE_SELF_TEST_REPORT", "")
+    if report_path:
+        Path(report_path).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return 0 if report["overall"] == "PASS" else 1
+
+
+# ==========================================
+# Windows custom URL scheme：成交聯盟授權回呼
+# ==========================================
+def register_callback_protocol():
+    if sys.platform != 'win32':
+        return
+    try:
+        import winreg
+        key_path = r"Software\Classes\dealalliance-line-windows"
+        command = sys.executable
+        if not getattr(sys, 'frozen', False):
+            command = f'"{sys.executable}" "{os.path.abspath(__file__)}"'
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+            winreg.SetValueEx(key, '', 0, winreg.REG_SZ, 'URL:成交聯盟 LINE Windows 授權')
+            winreg.SetValueEx(key, 'URL Protocol', 0, winreg.REG_SZ, '')
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path + r"\shell\open\command") as key:
+            winreg.SetValueEx(key, '', 0, winreg.REG_SZ, command + ' "%1"')
+    except Exception:
+        # 註冊失敗時維持拒絕未授權；不自行繞過登入。
+        pass
+
+
+def handle_callback_argument():
+    if sys.platform != 'win32':
+        return False
+    from urllib.parse import parse_qs, urlparse
+    for value in sys.argv[1:]:
+        if not value.lower().startswith(APP_CALLBACK_SCHEME + '://handoff'):
+            continue
+        try:
+            query = parse_qs(urlparse(value).query)
+            code = query.get('code', [''])[0].strip()
+            state = query.get('state', [''])[0].strip()
+            if code and state:
+                target = Path(os.environ.get('APPDATA', Path.home())) / 'LINE自動發訊息'
+                target.mkdir(parents=True, exist_ok=True)
+                pending = target / 'pending_oauth_callback.json'
+                pending.write_text(json.dumps({'code': code, 'state': state}), encoding='utf-8')
+                try:
+                    pending.chmod(0o600)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return True
+    return False
+
+
+# ==========================================
 # 主程式入口
 # ==========================================
 if __name__ == '__main__':
+    if "--self-test-no-send" in sys.argv[1:]:
+        sys.exit(run_no_send_self_test())
+
+    if (os.environ.get('DEAL_ALLIANCE_FUNCTIONAL_TEST', '').strip() == '1'
+            or os.environ.get('LINE_FUNCTIONAL_TEST_CHANNEL', '').strip() == '1'):
+        root = tk.Tk(); root.withdraw()
+        messagebox.showerror(
+            "版本通道不相容",
+            "正式候選版拒絕功能測試 channel／環境旗標，請使用獨立的 Windows functional-test 版本。"
+        )
+        sys.exit(0)
+
     # 平台檢查
     if sys.platform != 'win32':
         root = tk.Tk(); root.withdraw()
         messagebox.showwarning("系統不支援",
             "此程式為 Windows 版本。\nmacOS 用戶請使用「LINE自動發訊息.app」。")
         sys.exit(0)
+
+    if handle_callback_argument():
+        sys.exit(0)
+    register_callback_protocol()
 
     # 授權檢查
     lm = LicenseManager()
@@ -2221,5 +2348,5 @@ if __name__ == '__main__':
         app = LineAutoSenderApp(lm)
         app.run()
     else:
-        expired = ExpiredWindow(lm)
+        expired = AuthorizationRequiredWindow(lm)
         expired.run()

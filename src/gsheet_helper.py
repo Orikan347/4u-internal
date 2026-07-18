@@ -4,12 +4,11 @@
 Google Sheet 回寫模組 v2.0 — LINE 自動發訊息
 Orikan 李泰欣 | 亞洲銷冠系統架構導師
 
-方式：透過 Google Apps Script Web App 網址，用 HTTP POST 寫入 Sheet
-不需要任何 API 金鑰，只需要一個部署網址！
+方式：Google Sheet 僅作為可選的發送結果記錄；授權改由成交聯盟共用平台短效 lease API 判斷。
 
 v2.0 新增：
 - API Token 安全驗證（所有寫入操作都帶 token）
-- verify_license()：線上授權驗證（讀取 Google Sheet「授權白名單」）
+- LicenseAPIClient：成交聯盟共用平台短效 lease 授權
 - log_send_detail()：逐筆發送紀錄（含好友名稱）
 - log_batch_summary()：批次摘要紀錄
 
@@ -21,12 +20,102 @@ import json
 import platform
 from datetime import datetime
 from urllib.request import Request, urlopen
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from urllib.error import URLError
 
 
-# ===== API 安全 Token（需與 Apps Script 端一致）=====
-API_TOKEN = "ORIKAN_TX_2024"
+# 記錄服務憑證不可寫入程式；正式平台應提供短效工作階段。
+API_TOKEN = os.environ.get("LINE_LOG_API_TOKEN", "")
+LICENSE_API_ENV = "DEAL_ALLIANCE_LICENSE_API_URL"
+
+
+def normalize_license_api_url(raw_url):
+    """只接受由正式環境注入的純 HTTPS API origin，絕不 fallback 到 staging。"""
+    value = str(raw_url or "").strip()
+    if not value:
+        return ""
+    try:
+        parsed = urlsplit(value)
+        # Accessing port also validates malformed port syntax.
+        _ = parsed.port
+    except ValueError:
+        return ""
+    if (parsed.scheme.lower() != "https" or not parsed.hostname
+            or parsed.username is not None or parsed.password is not None
+            or parsed.path not in ("", "/") or parsed.query or parsed.fragment):
+        return ""
+    return value.rstrip("/")
+
+
+class LicenseAPIClient:
+    """成交聯盟共用授權 API client；不保存平台 secret。"""
+
+    def __init__(self, api_url):
+        self.api_url = normalize_license_api_url(api_url)
+
+    def _post(self, path, payload, bearer_token=""):
+        if not self.api_url:
+            raise RuntimeError("未設定成交聯盟授權 API")
+        headers = {"Content-Type": "application/json"}
+        if bearer_token:
+            headers["Authorization"] = f"Bearer {bearer_token}"
+        req = Request(
+            f"{self.api_url}{path}",
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+        )
+        with urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def exchange_authorization_code(self, code, code_verifier, app_id, client_id, release_id,
+                                    product_id, redirect_uri, device_id, platform_name, app_version):
+        """OAuth V2 code exchange. The verifier is supplied by memory only."""
+        return self._post("/api/apps/token", {
+            "grant_type": "authorization_code",
+            "code": code,
+            "code_verifier": code_verifier,
+            "app_id": app_id,
+            "client_id": client_id,
+            "release_id": release_id,
+            "product_id": product_id,
+            "redirect_uri": redirect_uri,
+            "device_id": device_id,
+            "platform": platform_name,
+            "app_version": app_version,
+        })
+
+    def refresh_authorization(self, refresh_token, app_id, client_id, release_id,
+                              product_id, device_id, platform_name, app_version):
+        """Refresh only a memory-resident OAuth V2 session before LINE actions."""
+        return self._post("/api/apps/token", {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "app_id": app_id,
+            "client_id": client_id,
+            "release_id": release_id,
+            "product_id": product_id,
+            "device_id": device_id,
+            "platform": platform_name,
+            "app_version": app_version,
+        })
+
+    def authorize_app(self, access_token, app_id, client_id, release_id,
+                      product_id, device_id, platform_name, app_version):
+        """The backend remains authoritative for product, device, version and status."""
+        return self._post("/api/apps/license", {
+            "app_id": app_id,
+            "client_id": client_id,
+            "release_id": release_id,
+            "product_id": product_id,
+            "device_id": device_id,
+            "platform": platform_name,
+            "app_version": app_version,
+        }, bearer_token=access_token)
+
+
+def load_license_api_url():
+    """只讀取正式環境注入的授權 API URL；缺值或不合格值一律不連線。"""
+    return normalize_license_api_url(os.environ.get(LICENSE_API_ENV, ""))
 
 
 class GSheetLogger:
@@ -66,9 +155,11 @@ class GSheetLogger:
         自動為寫入操作注入 API Token。
         POST 失敗時改用 GET 備援。
         """
-        # 自動注入 token（ping 和 verify_license 不需要）
+        # 自動注入外部記錄 token；授權 API 使用獨立的 LicenseAPIClient。
         action = data.get("action", "")
-        if action not in ("ping", "verify_license") and "token" not in data:
+        if action != "ping" and "token" not in data:
+            if not API_TOKEN:
+                return {"status": "error", "reason": "missing_external_log_token"}
             data["token"] = API_TOKEN
 
         json_data = json.dumps(data).encode('utf-8')
@@ -90,36 +181,6 @@ class GSheetLogger:
         req = Request(fallback_url)
         with urlopen(req, timeout=15) as resp:
             return json.loads(resp.read().decode('utf-8'))
-
-    # ==========================================
-    # 授權驗證
-    # ==========================================
-    def verify_license(self, key):
-        """
-        線上驗證授權碼（透過 Google Sheet「授權白名單」）
-        回傳: (valid, info_dict)
-            valid: True/False
-            info_dict: {'type': 'permanent'/'subscription', 'expire': '', 'customer': '', 'reason': ''}
-        """
-        try:
-            result = self._post({
-                "action": "verify_license",
-                "key": key
-            })
-            if result and result.get("status") == "ok":
-                if result.get("valid"):
-                    return True, {
-                        "type": result.get("type", ""),
-                        "expire": result.get("expire", ""),
-                        "customer": result.get("customer", "")
-                    }
-                else:
-                    return False, {
-                        "reason": result.get("reason", "unknown")
-                    }
-            return False, {"reason": "server_error"}
-        except Exception as e:
-            return False, {"reason": f"connection_error: {str(e)}"}
 
     # ==========================================
     # 批次 ID
@@ -221,6 +282,13 @@ class GSheetLogger:
 # 設定檔管理
 # ==========================================
 def get_config_dir():
+    if os.environ.get('LINE_FUNCTIONAL_TEST_CHANNEL') == '1':
+        configured = os.environ.get('LINE_FUNCTIONAL_TEST_DATA_DIR', '').strip()
+        config_dir = configured or os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 'functional_test_data'
+        )
+        os.makedirs(config_dir, exist_ok=True)
+        return config_dir
     if platform.system() == 'Darwin':
         config_dir = os.path.expanduser('~/Library/Application Support/LINE自動發訊息')
     else:
@@ -230,7 +298,7 @@ def get_config_dir():
 
 
 # 預設 Web App 網址（寫死備援，確保永遠有值）
-DEFAULT_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzUPbGfZZ1btnwSneHhCbefDnFHkUE_DeYNgJ8gjJEB0bPOUQYvyt4uraZWATdF71dy/exec"
+DEFAULT_WEBAPP_URL = ""
 
 
 def load_gsheet_config():
@@ -243,26 +311,18 @@ def load_gsheet_config():
             # 如果讀到的 URL 是空的，用預設值補上
             if not config.get('webapp_url'):
                 config['webapp_url'] = DEFAULT_WEBAPP_URL
-                config['enabled'] = True
+                config['enabled'] = False
                 save_gsheet_config(config)
-            return config
-    except Exception:
-        pass
-    # 備援：讀取程式同目錄的 gsheet_config.json（封包預設值）
-    try:
-        local_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gsheet_config.json')
-        if os.path.exists(local_config):
-            with open(local_config, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            if not config.get('webapp_url'):
-                config['webapp_url'] = DEFAULT_WEBAPP_URL
-                config['enabled'] = True
-            save_gsheet_config(config)
+            config.setdefault('license_api_url', load_license_api_url())
             return config
     except Exception:
         pass
     # 所有設定檔都讀不到時，用預設值
-    return {'webapp_url': DEFAULT_WEBAPP_URL, 'enabled': True}
+    return {
+        'webapp_url': DEFAULT_WEBAPP_URL,
+        'license_api_url': load_license_api_url(),
+        'enabled': False,
+    }
 
 
 def save_gsheet_config(config):
