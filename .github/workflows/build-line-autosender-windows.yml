@@ -1,6 +1,9 @@
 name: Build private LINE Auto Sender Windows candidate
 
 on:
+  push:
+    branches:
+      - line-autosender-windows-private-8000-20260718
   workflow_dispatch:
     inputs:
       release_id:
@@ -27,7 +30,7 @@ jobs:
       - name: Inject OAuth V2 release binding
         shell: pwsh
         run: |
-          $releaseId = "${{ inputs.release_id }}"
+          $releaseId = "${{ inputs.release_id || 'DA-LINE-WINDOWS-20260717-8000' }}"
           if ($releaseId -notmatch '^DA-LINE-WINDOWS-[0-9]{8}-[0-9]+$') { throw "WIN-BUILD-RELEASE-001: invalid release_id" }
           $sourcePath = "src/LINE自動發訊息_Windows.pyw"
           python src/prepare_windows_release_binding.py $sourcePath $releaseId --bound-source release_binding/LINE自動發訊息_Windows.pyw --binding-output release_binding/BOUND_SOURCE_MANIFEST.json
