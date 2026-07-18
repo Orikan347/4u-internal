@@ -1,0 +1,92 @@
+name: Probe exact LINE Windows 8000 GUI no-send capability
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  exact-unsigned-gui-capability:
+    runs-on: windows-2022
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout harness only
+        uses: actions/checkout@v4
+
+      - name: Set up verifier Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Download exact private candidate from build run 29644293092
+        uses: actions/download-artifact@v5
+        with:
+          name: LINE自動發訊息_Windows候選版
+          path: candidate-download
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 29644293092
+
+      - name: Verify local harness contract before launch
+        shell: pwsh
+        run: |
+          python src/verify_line_windows_8000_github_hosted_gui_no_send.py `
+            --contract release_evidence/line_windows_8000_github_hosted_gui_no_send_contract.json
+
+      - name: Parse PowerShell harness before launch
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path "src/run_line_windows_8000_github_hosted_gui_no_send.ps1"),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if (@($errors).Count -ne 0) { throw "WIN-GUI-HARNESS-PS-SYNTAX-001: PowerShell parse failed" }
+
+      - name: Probe hosted GUI and auth-required cancel-retry without LINE
+        shell: powershell
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File src/run_line_windows_8000_github_hosted_gui_no_send.ps1 `
+            -CandidateZip "candidate-download/LINE自動發訊息_Windows候選版.zip" `
+            -ContractPath "release_evidence/line_windows_8000_github_hosted_gui_no_send_contract.json" `
+            -OutputDirectory "gui-no-send-evidence" `
+            -Mode "CapabilityOnly"
+
+      - name: Verify fixed capability result never claims GUI or send PASS
+        if: always()
+        shell: pwsh
+        run: |
+          python src/verify_line_windows_8000_github_hosted_gui_no_send.py `
+            --contract release_evidence/line_windows_8000_github_hosted_gui_no_send_contract.json `
+            --runtime-report gui-no-send-evidence/runtime-report.json
+
+      - name: Verify private evidence upload allowlist
+        id: evidence_allowlist
+        if: always()
+        shell: pwsh
+        run: |
+          $root = "gui-no-send-evidence"
+          if (!(Test-Path "$root/runtime-report.json")) { throw "WIN-GUI-EVIDENCE-001: runtime report missing" }
+          $files = @(Get-ChildItem -LiteralPath $root -File -Recurse)
+          foreach ($file in $files) {
+            if ($file.Name -ne "runtime-report.json" -and $file.Extension.ToLowerInvariant() -ne ".png") {
+              throw "WIN-GUI-EVIDENCE-002: forbidden upload file type"
+            }
+          }
+          if (@($files | Where-Object { $_.Extension.ToLowerInvariant() -in @(".exe", ".zip", ".jsonl") }).Count -ne 0) {
+            throw "WIN-GUI-EVIDENCE-003: candidate, executable or trace file entered evidence output"
+          }
+
+      - name: Retain private deidentified capability evidence only
+        if: always() && steps.evidence_allowlist.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LINE-Windows-8000-GUI-capability-private
+          path: gui-no-send-evidence
+          if-no-files-found: error
+          retention-days: 3

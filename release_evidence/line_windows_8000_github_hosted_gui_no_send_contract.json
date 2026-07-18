@@ -1,0 +1,98 @@
+{
+  "schema_version": "line_windows_8000_github_hosted_gui_no_send_contract_v1",
+  "status": "LOCAL_HARNESS_READY_REMOTE_CAPABILITY_UNVERIFIED",
+  "release_identity": {
+    "release_id": "DA-LINE-WINDOWS-20260717-8000",
+    "version": "8.0.0",
+    "app_id": "line_automation_windows",
+    "client_id": "deal_alliance_line_windows",
+    "callback": "dealalliance-line-windows://handoff",
+    "pkce": "S256"
+  },
+  "candidate": {
+    "source_run_id": "29644293092",
+    "source_commit": "1eb9269932d17465befb819b284104f6053203ba",
+    "artifact_name": "LINE自動發訊息_Windows候選版",
+    "package_filename": "LINE自動發訊息_Windows候選版.zip",
+    "package_sha256": "88556886e9b657b1038db2b6cccc457532d11cbd1e6a73fffe0943974a772aee",
+    "exe_sha256": "63594612df121c7bf49fb909c4f1b004a81e329fb1519a8250f50dce3f4145cd",
+    "manifest_sha256": "c9bbc0a94d40755a53006b2d4e366159ab2f434348bf8e8e40bf333a0c82d178",
+    "sbom_sha256": "540710435a2323c30fce2f578fbd1f6b071e674c0a976d01dd51bbce96444ab2",
+    "exact_exe_bytes_must_not_change": true
+  },
+  "runner": {
+    "label": "windows-2022",
+    "github_hosted": true,
+    "interactive_desktop_guaranteed_by_provider": false,
+    "remote_capability_probe_required": true,
+    "capability_requirements": {
+      "environment_user_interactive": true,
+      "session_id_nonzero": true,
+      "desktop_name": "Default",
+      "screen_width_min": 800,
+      "screen_height_min": 600,
+      "uiautomation_root_available": true,
+      "line_process_absent": true
+    }
+  },
+  "lanes": {
+    "capability_and_auth_required": {
+      "allowed": true,
+      "oauth_browser_replaced_with_zero_network_stub": true,
+      "checks": [
+        "auth_required_window_visible",
+        "cancel_by_closing_app",
+        "retry_by_relaunching_same_exe",
+        "same_exe_hash_after_relaunch"
+      ]
+    },
+    "provider_dependent_main_window": {
+      "allowed": false,
+      "reason": "A fresh GitHub-hosted VM has no approved staging browser identity. The exact EXE has no fake-lease bypass and must reach the main window only through current OAuth PKCE.",
+      "checks_when_separately_authorized": [
+        "blank_input_rejected",
+        "deidentified_input_entered",
+        "preview_visible",
+        "preview_cancelled"
+      ],
+      "forbidden_action": "FINAL_CONFIRM_OK"
+    }
+  },
+  "allowed_runtime_statuses": [
+    "GITHUB_HOSTED_WINDOWS_GUI_CAPABILITY_PASS_AUTH_REQUIRED_ONLY",
+    "GITHUB_HOSTED_WINDOWS_GUI_CAPABILITY_BLOCKED_NO_INTERACTIVE_DESKTOP",
+    "GITHUB_HOSTED_WINDOWS_GUI_CAPABILITY_BLOCKED_UIAUTOMATION_TREE_UNAVAILABLE",
+    "GITHUB_HOSTED_WINDOWS_GUI_CAPABILITY_BLOCKED_TK_UIA_PATTERN_UNAVAILABLE",
+    "GITHUB_HOSTED_WINDOWS_GUI_CAPABILITY_BLOCKED_AUTH_REQUIRED_WINDOW_NOT_OBSERVED",
+    "GITHUB_HOSTED_WINDOWS_GUI_CAPABILITY_BLOCKED_PROVIDER_IDENTITY_REQUIRED",
+    "GITHUB_HOSTED_WINDOWS_GUI_CAPABILITY_ABORTED_BROWSER_STUB_NOT_INVOKED",
+    "GITHUB_HOSTED_WINDOWS_GUI_CAPABILITY_ABORTED_LINE_PROCESS_PRESENT",
+    "GITHUB_HOSTED_WINDOWS_GUI_CAPABILITY_ABORTED_UNEXPECTED_AUTHENTICATED_MAIN_WINDOW"
+  ],
+  "safety": {
+    "deidentified_fixture_text": "Windows 8000 GitHub hosted GUI no-send fixture",
+    "line_must_not_start": true,
+    "final_send_must_not_be_clicked": true,
+    "messages_sent": 0,
+    "send_attempts": 0,
+    "real_data": false,
+    "secrets_allowed": false,
+    "formal_registry_allowed": false,
+    "authenticode_allowed": false,
+    "upload_product_allowed": false,
+    "download_catalog_allowed": false
+  },
+  "implementation_hashes": {
+    "workflow_sha256": "4645c9a1b19ae6c4d50d6c806579c9c7b02943994aa01b4b5a021d88fb0fa176",
+    "harness_sha256": "20fefb294a8d9b1994e66e07f25266e31aabd2c452c90dc28399ba0224642067",
+    "verifier_sha256": "12f587e06223fa470fad80ffb0e77ab73af3b0ccfa914df2111700a1714dce8c",
+    "test_sha256": "1c73e07bae595b058f22ecf45e46eb6def2f45ce5a429a394348d61d70d02836"
+  },
+  "sources": [
+    "https://docs.github.com/en/actions/concepts/runners/github-hosted-runners",
+    "https://github.com/actions/runner-images",
+    "https://docs.github.com/en/actions/tutorials/store-and-share-data",
+    "https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/uiautomation"
+  ],
+  "next_gate": "PUSH_AND_DISPATCH_ONLY_AFTER_MAIN_WINDOW_APPROVAL_THEN_CONSUME_FIXED_CAPABILITY_STATUS"
+}
