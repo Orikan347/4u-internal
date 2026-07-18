@@ -71,17 +71,24 @@ jobs:
         run: |
           cd release_binding
           pyinstaller --onefile --windowed --name "LINE_AutoSender" --clean --noconfirm "LINE自動發訊息_Windows.pyw"
+          Copy-Item "LINE自動發訊息_Windows.pyw" "LINE自動發訊息_Windows_self_test.py"
+          if ((Get-FileHash "LINE自動發訊息_Windows.pyw" -Algorithm SHA256).Hash -ne (Get-FileHash "LINE自動發訊息_Windows_self_test.py" -Algorithm SHA256).Hash) { throw "Self-test source copy does not match candidate source" }
+          pyinstaller --onefile --console --name "LINE_AutoSenderSelfTest" --clean --noconfirm "LINE自動發訊息_Windows_self_test.py"
+          Remove-Item "LINE自動發訊息_Windows_self_test.py" -Force
 
       - name: EXE self-test (no send)
         shell: pwsh
         run: |
           $env:LINE_SELF_TEST_REPORT = (Join-Path (Get-Location) "windows_exe_no_send_self_test.json")
-          & "release_binding/dist/LINE_AutoSender.exe" "--self-test-no-send"
-          if ($LASTEXITCODE -ne 0) { throw "Windows EXE no-send self-test failed" }
+          & "release_binding/dist/LINE_AutoSenderSelfTest.exe" "--self-test-no-send"
+          $selfTestExitCode = $LASTEXITCODE
+          if (Test-Path $env:LINE_SELF_TEST_REPORT) { Get-Content -Raw $env:LINE_SELF_TEST_REPORT }
+          if ($selfTestExitCode -ne 0) { throw "Windows EXE no-send self-test failed" }
           $report = Get-Content -Raw $env:LINE_SELF_TEST_REPORT | ConvertFrom-Json
           if ($report.overall -ne "PASS" -or $report.real_data -ne $false -or $report.line_ui_opened -ne $false -or $report.keyboard_or_clipboard_used -ne $false -or @($report.external_actions).Count -ne 0) {
             throw "Windows EXE self-test report violates no-send boundary"
           }
+          Remove-Item "release_binding/dist/LINE_AutoSenderSelfTest.exe" -Force
 
       - name: Create private candidate archive
         shell: pwsh
