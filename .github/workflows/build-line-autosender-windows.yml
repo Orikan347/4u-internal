@@ -3,7 +3,7 @@ name: Build private LINE Auto Sender Windows candidate
 on:
   push:
     branches:
-      - line-autosender-windows-private-8000-20260718
+      - line-autosender-windows-private-8001-20260802
   workflow_dispatch:
     inputs:
       release_id:
@@ -17,7 +17,7 @@ permissions:
 env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
-  RELEASE_ID: "${{ inputs.release_id || 'DA-LINE-WINDOWS-20260717-8000' }}"
+  RELEASE_ID: "${{ inputs.release_id || 'DA-LINE-WINDOWS-20260802-8001' }}"
 
 jobs:
   build-windows-exe:
@@ -36,15 +36,16 @@ jobs:
         shell: pwsh
         run: |
           $releaseId = $env:RELEASE_ID
-          if ($releaseId -notmatch '^DA-LINE-WINDOWS-[0-9]{8}-[0-9]+$') { throw "WIN-BUILD-RELEASE-001: invalid release_id" }
+          $allocation = Get-Content -Raw "release_evidence/CURRENT_SUCCESSOR_RELEASE_ALLOCATION.json" | ConvertFrom-Json
+          if ($releaseId -ne $allocation.release_id) { throw "WIN-BUILD-RELEASE-001: release_id differs from current successor allocation" }
           $sourcePath = "src/LINE自動發訊息_Windows.pyw"
-          python src/prepare_windows_release_binding.py $sourcePath $releaseId --bound-source release_binding/LINE自動發訊息_Windows.pyw --binding-output release_binding/BOUND_SOURCE_MANIFEST.json
+          python src/prepare_windows_release_binding.py $sourcePath $releaseId --version $allocation.version --bound-source release_binding/LINE自動發訊息_Windows.pyw --binding-output release_binding/BOUND_SOURCE_MANIFEST.json
           Copy-Item "src/gsheet_helper.py" "release_binding/gsheet_helper.py"
 
       - name: Verify Release Security allocation binds this exact source
         shell: pwsh
         run: |
-          $evidencePath = "release_evidence/windows_release_security_allocation_20260718.json"
+          $evidencePath = "release_evidence/CURRENT_SUCCESSOR_RELEASE_ALLOCATION.json"
           if (!(Test-Path $evidencePath)) { throw "WIN-BUILD-ALLOCATION-001: Release Security allocation evidence is required" }
           python src/verify_windows_release_security_allocation.py release_binding/LINE自動發訊息_Windows.pyw release_binding/BOUND_SOURCE_MANIFEST.json $evidencePath
 
@@ -59,6 +60,10 @@ jobs:
         run: |
           python -m py_compile release_binding/LINE自動發訊息_Windows.pyw release_binding/gsheet_helper.py
           python src/verify_windows_no_send_preflight.py release_binding/LINE自動發訊息_Windows.pyw release_binding/gsheet_helper.py
+          $env:LINE_WINDOWS_SUCCESSOR_BOUND_SOURCE = (Resolve-Path "release_binding/LINE自動發訊息_Windows.pyw").Path
+          $env:LINE_WINDOWS_SUCCESSOR_DRY_RUN_REPORT = (Join-Path (Get-Location) "WINDOWS_SUCCESSOR_FUNCTIONAL_DRY_RUN.json")
+          python src/test_line_windows_successor_functional_dry_run.py
+          python src/verify_windows_functional_no_send_preflight.py Windows/source/line_auto_sender_windows_functional_test.pyw src/functional_test_logger.py
           $source = Get-Content -Raw "release_binding/LINE自動發訊息_Windows.pyw"
           $helper = Get-Content -Raw "src/gsheet_helper.py"
           foreach ($token in @("ORIKAN_TX_2024", "script.google.com/macros", "verify_license", "PERMANENT-*", "SUB-*")) {
@@ -103,6 +108,7 @@ jobs:
           }
           python src/create_windows_private_candidate_evidence.py `
             --release-id $env:RELEASE_ID `
+            --allocation "release_evidence/CURRENT_SUCCESSOR_RELEASE_ALLOCATION.json" `
             --binding-manifest "release_binding/BOUND_SOURCE_MANIFEST.json" `
             --bound-source "release_binding/LINE自動發訊息_Windows.pyw" `
             --helper "release_binding/gsheet_helper.py" `
@@ -128,7 +134,7 @@ jobs:
           if (!(Test-Path "WINDOWS_PRIVATE_CANDIDATE_EVIDENCE.json")) { throw "Candidate outer evidence not found" }
           $manifest = Get-Content -Raw "private_candidate/LINE自動發訊息_Windows候選版/CANDIDATE_MANIFEST.json" | ConvertFrom-Json
           if ($manifest.status -ne "PRIVATE_UNSIGNED_CANDIDATE_NOT_FOR_DELIVERY") { throw "Candidate status is not private" }
-          if ($manifest.app_id -ne "line_automation_windows" -or $manifest.client_id -ne "deal_alliance_line_windows" -or $manifest.release_id -ne "DA-LINE-WINDOWS-20260717-8000" -or $manifest.pkce -ne "S256") { throw "Candidate OAuth V2 binding is incomplete" }
+          if ($manifest.app_id -ne "line_automation_windows" -or $manifest.client_id -ne "deal_alliance_line_windows" -or $manifest.product_id -ne "line_automation" -or $manifest.platform -ne "windows" -or $manifest.callback -ne "dealalliance-line-windows://handoff" -or $manifest.release_id -ne "DA-LINE-WINDOWS-20260802-8001" -or $manifest.version -ne "8.0.1" -or $manifest.pkce -ne "S256" -or $manifest.backend_contract_sha256 -ne "93092b1d3dc2d8e26842c11e9d7b8b55374bc90e8ba74cdba96d28ffe2633c5d") { throw "Candidate OAuth/live-dispatch binding is incomplete" }
           if ($manifest.gates.formal_registry_allowed -ne $false -or $manifest.gates.customer_delivery_allowed -ne $false -or $manifest.gates.protected_download_allowed -ne $false) { throw "Candidate delivery gate is not closed" }
           $candidate = "private_candidate/LINE自動發訊息_Windows候選版"
           $candidateRoot = (Resolve-Path $candidate).Path
@@ -161,7 +167,8 @@ jobs:
       - name: Upload private candidate archive
         uses: actions/upload-artifact@v4
         with:
-          name: LINE自動發訊息_Windows候選版
+          name: LINE-WINDOWS-8001-PRIVATE-UNSIGNED
           path: |
             LINE自動發訊息_Windows候選版.zip
             WINDOWS_PRIVATE_CANDIDATE_EVIDENCE.json
+            WINDOWS_SUCCESSOR_FUNCTIONAL_DRY_RUN.json

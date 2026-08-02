@@ -83,13 +83,13 @@ IG_URL = "https://www.instagram.com/eintaixin?igsh=MWtnM2sxMnRvcHdoNg%3D%3D&utm_
 BRAND_NAME = "Orikan 李泰欣"
 BRAND_TITLE = "亞洲銷冠系統架構導師"
 APP_NAME = "LINE 自動發訊息"
-APP_VERSION = "8.0.0"
+APP_VERSION = "8.0.1"
 PRODUCT_ID = "line_automation"
 APP_ID = "line_automation_windows"
 CLIENT_ID = "deal_alliance_line_windows"
 # The controlled Windows build replaces this sentinel before PyInstaller.  An
 # unpacked source tree cannot open a browser or request an entitlement.
-RELEASE_ID = "DA-LINE-WINDOWS-20260717-8000"
+RELEASE_ID = "DA-LINE-WINDOWS-20260802-8001"
 APP_CALLBACK_SCHEME = "dealalliance-line-windows"
 APP_CHANNEL = "release-candidate"
 # Filled only by the controlled Authenticode release lane. An unsigned private

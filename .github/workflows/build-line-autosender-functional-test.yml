@@ -1,94 +1,25 @@
-name: Build LINE Auto Sender Windows functional-test version
+name: Retired LINE functional real-driver channel (no artifact)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - line-autosender-windows-functional-test-20260714
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-windows-functional-test:
+  verify-retired-channel:
     runs-on: windows-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
-      - name: Install dependencies
+      - name: Prove historical functional channel is deny-only
         shell: pwsh
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pyautogui pyperclip Pillow pyinstaller
-
-      - name: Verify functional-test source boundary
-        shell: pwsh
-        run: |
-          python -m py_compile Windows/source/line_auto_sender_windows_functional_test.pyw Windows/source/gsheet_helper.py
+          python -m py_compile "Windows/source/line_auto_sender_windows_functional_test.pyw"
           $source = Get-Content -Raw "Windows/source/line_auto_sender_windows_functional_test.pyw"
-          if (!$source.Contains('FUNCTIONAL_TEST_CHANNEL = True')) { throw "Functional-test channel marker missing" }
-          if (!$source.Contains('functional_test_license.json')) { throw "Functional test lease fixture missing" }
-          if (Test-Path "Windows/source/gsheet_config.json") { throw "gsheet_config.json must not be packaged" }
-          if (Test-Path "Windows/source/license.json") { throw "license.json must not be packaged" }
-
-      - name: Build functional-test EXE
-        shell: pwsh
-        run: |
-          cd Windows/source
-          pyinstaller --onefile --windowed --name "LINE_AutoSender_FUNCTIONAL_TEST" --clean --noconfirm "line_auto_sender_windows_functional_test.pyw"
-
-      - name: Create functional-test archive
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path "functional_test/LINE自動發訊息_Windows功能測試版" | Out-Null
-          Copy-Item "Windows/source/dist/LINE_AutoSender_FUNCTIONAL_TEST.exe" "functional_test/LINE自動發訊息_Windows功能測試版/LINE_AutoSender_FUNCTIONAL_TEST.exe"
-          Copy-Item "Windows/source/functional_test_license.json" "functional_test/LINE自動發訊息_Windows功能測試版/functional_test_license.json"
-          $manifest = [ordered]@{
-            schema_version = "1.0"
-            channel = "functional-test"
-            status = "PENDING_USER_ACCEPTANCE"
-            formal_output_allowed = $false
-            customer_delivery_allowed = $false
-            real_customer_data_allowed = $false
-            exe_sha256 = (Get-FileHash "Windows/source/dist/LINE_AutoSender_FUNCTIONAL_TEST.exe" -Algorithm SHA256).Hash.ToLower()
-            external_actions_executed = @()
-          }
-          $manifest | ConvertTo-Json -Depth 4 | Set-Content "functional_test/LINE自動發訊息_Windows功能測試版/FUNCTIONAL_TEST_MANIFEST.json" -Encoding utf8
-          Compress-Archive -Path "functional_test/LINE自動發訊息_Windows功能測試版" -DestinationPath "LINE自動發訊息_Windows功能測試版.zip" -Force
-
-      - name: Verify functional-test archive
-        shell: pwsh
-        run: |
-          if (!(Test-Path "LINE自動發訊息_Windows功能測試版.zip")) { throw "Functional test archive not found" }
-          $manifest = Get-Content -Raw "functional_test/LINE自動發訊息_Windows功能測試版/FUNCTIONAL_TEST_MANIFEST.json" | ConvertFrom-Json
-          if ($manifest.channel -ne "functional-test") { throw "Wrong channel" }
-          if ($manifest.status -ne "PENDING_USER_ACCEPTANCE") { throw "Wrong functional test status" }
-          if ($manifest.formal_output_allowed -ne $false -or $manifest.customer_delivery_allowed -ne $false -or $manifest.real_customer_data_allowed -ne $false) { throw "Functional test delivery/data gate is open" }
-          if ($manifest.external_actions_executed.Count -ne 0) { throw "Functional test recorded external actions" }
-          $actualHash = (Get-FileHash "functional_test/LINE自動發訊息_Windows功能測試版/LINE_AutoSender_FUNCTIONAL_TEST.exe" -Algorithm SHA256).Hash.ToLower()
-          if ($manifest.exe_sha256.ToLower() -ne $actualHash) { throw "EXE SHA-256 does not match manifest" }
-          Get-ChildItem "functional_test/LINE自動發訊息_Windows功能測試版"
-
-      - name: Upload functional-test artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: LINE自動發訊息_Windows功能測試版
-          path: LINE自動發訊息_Windows功能測試版.zip
-
-      - name: Persist functional-test ZIP for CLI retrieval
-        if: github.event_name == 'push'
-        shell: pwsh
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "LINE自動發訊息_Windows功能測試版.zip"
-          if (git diff --cached --quiet) { exit 0 }
-          git commit -m "ci: persist functional-test artifact [skip ci]"
-          git push origin "HEAD:${{ github.ref_name }}"
+          if (!$source.Contains('FUNCTIONAL_TEST_NO_AUTH = False')) { throw "Functional no-auth bypass was not retired" }
+          if (!$source.Contains('WIN-FUNCTIONAL-RETIRED')) { throw "Direct dispatcher deny marker missing" }
+          if ($source.Contains('FUNCTIONAL_TEST_NO_AUTH = True')) { throw "No-auth real-driver marker remains" }
+          Write-Output "FUNCTIONAL_REAL_DRIVER_CHANNEL_RETIRED=PASS artifact_created=false"

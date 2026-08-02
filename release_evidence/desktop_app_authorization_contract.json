@@ -1,0 +1,268 @@
+{
+  "schema_version": "2026-07-15-oauth-v2-candidate",
+  "status": "STAGING_OAUTH_READBACK_PASS",
+  "authorization_base_url": "https://app.dealalliancehub.com",
+  "authorization_base_url_rule": "DA_APP_AUTHORIZATION_BASE_URL may equal only the exact bare HTTPS origin https://app.dealalliancehub.com after isolated staging DNS, HTTPS, Worker route, D1 migration 0013, Secret Manager name checks, release-registry evidence, and all four deidentified desktop OAuth v2 readbacks pass. It must not contain a path, query, fragment, userinfo, or port.",
+  "release_registry_gate": {
+    "required": true,
+    "migration": "management_migrations/0013_desktop_app_oauth_v2_pkce_candidate.sql",
+    "when_registry_absent": "fail_closed_release_registry_unavailable",
+    "when_release_evidence_absent_or_not_ready": "fail_closed_release_not_ready",
+    "staging_only_provider_identity_exception": {
+      "contract": "staging_oauth_provider_identity_contract.json",
+      "migration": "management_migrations/0019_staging_oauth_provider_identity_candidate.sql",
+      "scope": "staging private platform_admin OAuth readback only",
+      "production_allowed": false,
+      "ordinary_customer_allowed": false,
+      "formal_release_lookup_allowed": false,
+      "download_lookup_allowed": false
+    },
+    "ordinary_download_delivery": "not_implemented_in_this_candidate",
+    "r2_url_must_be_absent": true
+  },
+  "endpoints": {
+    "authorize": "/oauth/authorize",
+    "token": "/api/apps/token",
+    "license": "/api/apps/license",
+    "my_tools": "/api/my-tools",
+    "protected_download": "/api/my-tools/download"
+  },
+  "desktop_download_gate": {
+    "status": "artifact_not_ready",
+    "download_url_must_be_absent": true,
+    "release_channels": [
+      "birthday_sms_macos",
+      "bulk_sms_macos",
+      "line_automation_macos",
+      "line_automation_windows"
+    ]
+  },
+  "new_member_trial": {
+    "contract": "new_member_trial_contract.json",
+    "duration_days": 7,
+    "starts_after": "verified_account",
+    "eligibility": "all_catalog_products_where_is_available_equals_1",
+    "dynamic_for_active_trial": true,
+    "expired_status": "trial_expired",
+    "subscribe_required": true,
+    "message_key": "subscription_required",
+    "pricing_status": "not_configured"
+  },
+  "oauth_v2_pkce": {
+    "authorize_required": ["app_id", "client_id", "release_id", "product_id", "redirect_uri", "state", "device_id", "app_version", "platform", "code_challenge", "code_challenge_method"],
+    "token_authorization_code_required": ["app_id", "client_id", "release_id", "product_id", "redirect_uri", "device_id", "app_version", "platform", "code", "code_verifier"],
+    "token_refresh_required": ["app_id", "client_id", "release_id", "product_id", "device_id", "app_version", "platform", "refresh_token"],
+    "license_required": ["app_id", "client_id", "release_id", "product_id", "device_id", "app_version", "platform"],
+    "code_challenge_method": "S256",
+    "verifier_storage": "never_stored; only S256 challenge is stored",
+    "binding": ["app_id", "release_id", "client_id", "product_id", "device_id_hash", "app_version", "platform"]
+  },
+  "live_dispatch_capability": {
+    "schema_version": "2026-08-02-live-dispatch-v1",
+    "migration": "management_migrations/0034_server_authoritative_live_dispatch_capability.sql",
+    "endpoints": {
+      "issue": "/api/apps/capabilities/live-dispatch",
+      "consume": "/api/apps/capabilities/live-dispatch/consume"
+    },
+    "http_method": "POST",
+    "authorization": "Bearer access token",
+    "issue_request_required_keys_exact": [
+      "app_id",
+      "client_id",
+      "release_id",
+      "product_id",
+      "device_id",
+      "app_version",
+      "platform",
+      "operation",
+      "recipient_count",
+      "message_count",
+      "retry_count"
+    ],
+    "consume_request_required_keys_exact": [
+      "app_id",
+      "client_id",
+      "release_id",
+      "product_id",
+      "device_id",
+      "app_version",
+      "platform",
+      "operation",
+      "recipient_count",
+      "message_count",
+      "retry_count",
+      "capability_token"
+    ],
+    "issue_success_response_keys_exact": [
+      "status",
+      "operation",
+      "recipient_count",
+      "message_count",
+      "retry_count",
+      "capability_token",
+      "expires_in_seconds"
+    ],
+    "consume_success_response_keys_exact": [
+      "status",
+      "operation",
+      "recipient_count",
+      "message_count",
+      "retry_count",
+      "consumed"
+    ],
+    "capability_key": "capability_token",
+    "operation": "live_dispatch",
+    "recipient_count": 1,
+    "message_count": 1,
+    "retry_count": 0,
+    "ttl_seconds_max": 60,
+    "single_use": true,
+    "consumed_receipt": {
+      "event_code": "consumed",
+      "atomic_with_conditional_consume": true,
+      "source": "0034_sqlite_after_update_trigger",
+      "unique_per_capability": true,
+      "audit_failure_rolls_back_consume": true,
+      "replay_writes_receipt": false
+    },
+    "server_revalidation": {
+      "issue": true,
+      "consume": true,
+      "checks": [
+        "account_status",
+        "product_entitlement",
+        "release_identity",
+        "device_binding_and_limit",
+        "app_version",
+        "platform",
+        "token_expiry",
+        "token_revocation"
+      ]
+    },
+    "explicit_server_deny_overrides_cached_client_state": true,
+    "offline_or_authorization_service_failure": "fail_closed_no_capability_no_dispatch",
+    "capability_payload": "opaque_random_token_only",
+    "capability_must_not_contain": [
+      "email",
+      "user_id",
+      "customer_id",
+      "recipient",
+      "message",
+      "device_id",
+      "access_token",
+      "refresh_token",
+      "license_key",
+      "secret"
+    ]
+  },
+  "clients": {
+    "deal_alliance_birthday_sms_macos": {
+      "app_id": "birthday_sms_macos",
+      "product_id": "sms_suite",
+      "platform": "macos",
+      "callback": "dealalliance-birthday-sms://oauth/callback"
+    },
+    "deal_alliance_bulk_sms_macos": {
+      "app_id": "bulk_sms_macos",
+      "product_id": "sms_suite",
+      "platform": "macos",
+      "callback": "dealalliance-bulk-sms://oauth/callback"
+    },
+    "deal_alliance_line_macos": {
+      "app_id": "line_automation_macos",
+      "product_id": "line_automation",
+      "platform": "macos",
+      "callback": "dealalliance-line-macos://handoff"
+    },
+    "deal_alliance_line_windows": {
+      "app_id": "line_automation_windows",
+      "product_id": "line_automation",
+      "platform": "windows",
+      "callback": "dealalliance-line-windows://handoff"
+    }
+  },
+  "current_provider_readback": {
+    "record_semantics": "Current canonical verified provider evidence; the evidence-locked Worker is not the current all-false traffic Worker.",
+    "contract_version": "DA-DESKTOP-OAUTH-PROVIDER-READBACK-2026-07-17.2",
+    "expected_worker_version": "eb002952-85b7-445c-957e-d8fda2618eb5",
+    "expected_worker_version_semantics": "verified_readback_worker_not_current_traffic",
+    "source_deploy_version": "d5b8221c-da85-45a3-8d67-ecc9caac9757",
+    "source_sha256": "ee6636bca11fbe3041aa63ba5a3bb9667a80c7b43bac9861c469d200156e8a3d",
+    "rollback_worker_version": "bedb2c84-e7ea-4561-94d8-9703964f675c",
+    "status": "STAGING_OAUTH_READBACK_PASS",
+    "contract_path": "release_evidence/2026-07-17_current_desktop_oauth_provider_readback_contract.json",
+    "global_promotion_rule": "Only deidentified success, rejection, and cancellation evidence for all four clients on the exact evidence-locked Worker may promote the top-level status to STAGING_OAUTH_READBACK_PASS.",
+    "current_blockers": [],
+    "verified_evidence": {
+      "safe_summary": "release_evidence/2026-07-17_r08_desktop_oauth_provider_readback_verified_summary.json",
+      "private_evidence_sha256": "d6aef0a50eae894f7c6f2f3b95e40ccd9db8c8b0aef9c7e62997b16594d3e351",
+      "clients": 4,
+      "success": "passed",
+      "rejection": "passed",
+      "cancellation": "passed",
+      "privacy": "passed",
+      "download_enabled": false,
+      "payment_enabled": false
+    },
+    "deployed_fix": {
+      "status": "STAGING_OAUTH_READBACK_PASS",
+      "source_sha256": "ee6636bca11fbe3041aa63ba5a3bb9667a80c7b43bac9861c469d200156e8a3d",
+      "artifact_sha256": "1f95eb333741a0804630f9b7b58fbe0005fbf837e9fe40dfefc6a3ddbcefe159",
+      "all_false_artifact_sha256": "b0ce24630f4ff4c5be2015038c3b2d79db869b19e06abe272946a73e7d8ebb62",
+      "remote_rerun_required": false,
+      "future_remote_rerun_requires_controlled_oauth_only_deployment": true
+    },
+    "rejection_fixture_candidate": "release_evidence/2026-07-17_desktop_oauth_rejection_fixture_candidate.json",
+    "staging_oauth_identity_contract": "staging_oauth_provider_identity_contract.json",
+    "partial_client_results_must_not_promote_global_status": true
+  },
+  "exact_release_readback_ledger_semantics": "The legacy pending_exact_release_readbacks key is retained for consumer compatibility; each entry status is authoritative and may be PASS after exact-release promotion.",
+  "pending_exact_release_readbacks": {
+    "line_automation_macos": {
+      "status": "STAGING_OAUTH_READBACK_PASS",
+      "contract_version": "DA-LINE-MAC-OAUTH-PROVIDER-READBACK-2026-07-17.3",
+      "contract_path": "release_evidence/2026-07-17_line_mac_8007_oauth_provider_readback_contract.json",
+      "current_release_id": "DA-LINE-MAC-20260716-8007",
+      "current_version": "8.0.7",
+      "prior_verified_release_id": "DA-LINE-MAC-20260716-8006",
+      "prior_verified_version": "8.0.6",
+      "prior_r08_pass_cannot_authorize_current_release": true,
+      "success_rejection_cancellation": "STAGING_OAUTH_READBACK_PASS",
+      "source_sha256": "c38761f84ac5efd971a014122849ea09266d299bee43e725e216723dcbd81d48",
+      "verified_worker_version": "83e95aa1-9a20-4589-a1fc-571dd49ecd94",
+      "source_deploy_version": "e596e4f0-234d-447e-90e6-825dc2d4b144",
+      "verified_worker_semantics": "exact_release_readback_worker_not_current_traffic",
+      "transport": "dedicated_header",
+      "authorization_bearer_executed": false,
+      "safe_summary": "release_evidence/2026-07-17_r09_line_mac_8007_oauth_provider_readback_verified_summary.json",
+      "private_oauth_evidence_sha256": "fee39ed398fce84431157f82de2c954e25c7ef383523a4e85a3cc8ba3c6053e3",
+      "private_provider_lock_sha256": "f68f2b213aff2a4229034f1bcd4aa8b49361284dab57da65213131fdb468419e",
+      "deidentified_role_session_receipt_sha256": "c72da16d03922b48a7c00e594e9cd83b7ef2f6d0f1252db6346a8593cb212cb3",
+      "all_false_dry_run_artifact_sha256": "2b4a82e4e11902ea3b098ae4a00f0d24e7ac8944ececeeb9aa93f0df75d8e182",
+      "oauth_only_dry_run_artifact_sha256": "dd268203bbff70431601e23b769c4165df506a434810b74d23bc20e186dec5b9",
+      "formal_release_ready": false,
+      "download_enabled": false
+    }
+  },
+  "current_safe_base": {
+    "status": "CURRENT_STAGING_SAFE_BASE_ALL_SURFACES_DISABLED",
+    "worker_version": "bedb2c84-e7ea-4561-94d8-9703964f675c",
+    "deployment_id": "409d3c75-5131-4972-af14-0e52daf1b7af",
+    "traffic_percentage": 100,
+    "all_false_artifact_sha256": "b0ce24630f4ff4c5be2015038c3b2d79db869b19e06abe272946a73e7d8ebb62",
+    "feature_flags": {
+      "PUBLIC_ACCOUNT_REGISTRATION_ENABLED": false,
+      "PUBLIC_ACCOUNT_REGISTRATION_TEST_MODE": false,
+      "NEW_MEMBER_TRIAL_CANDIDATE_MODE": false,
+      "SMS_R02_PRIVATE_ACCEPTANCE_ENABLED": false,
+      "CONTACT_CONVERTER_TOOL_SURFACE_ENABLED": false,
+      "SMART_CLOSE_TOOL_SURFACE_ENABLED": false,
+      "STAGING_OAUTH_PROVIDER_IDENTITY_ENABLED": false,
+      "ECPAY_SANDBOX_CALLBACK_ENABLED": false
+    },
+    "names_only_bindings_present": ["LICENSE_DB", "MANAGEMENT_DB"],
+    "secret_values_read": false,
+    "verified_oauth_evidence_revoked": false
+  },
+  "forbidden_client_fields": ["email", "license_key", "code_verifier_storage", "r2_url"]
+}

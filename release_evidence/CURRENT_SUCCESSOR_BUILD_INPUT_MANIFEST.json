@@ -1,0 +1,47 @@
+{
+  "schema_version": "line_windows_private_unsigned_successor_build_input_v1",
+  "status": "READY_FOR_CONTROLLED_WINDOWS_UNSIGNED_BUILD",
+  "release_id": "DA-LINE-WINDOWS-20260802-8001",
+  "version": "8.0.1",
+  "build": "8001",
+  "app_id": "line_automation_windows",
+  "client_id": "deal_alliance_line_windows",
+  "product_id": "line_automation",
+  "platform": "windows",
+  "callback": "dealalliance-line-windows://handoff",
+  "pkce": "S256",
+  "backend_contract_sha256": "93092b1d3dc2d8e26842c11e9d7b8b55374bc90e8ba74cdba96d28ffe2633c5d",
+  "template_source_sha256": "e4fbfb4a96e1bd24ac49c8f336524c709894ba8bbb5205bf4a0dd5ed01445ed4",
+  "bound_source_sha256": "d85a75dde5892a799fb9f0d952c2ffe2397fc689db5bd40dc3b39bdf92a2a907",
+  "helper_sha256": "0e175befe6ff472fbacbeb4e8dbdc8d9af3af6f7b9c78c3ab7a395249a2d6dcd",
+  "allocation_path": "release_evidence/CURRENT_SUCCESSOR_RELEASE_ALLOCATION.json",
+  "workflow_path": ".github/workflows/build-line-autosender-windows.yml",
+  "workflow_sha256": "793498dc1c244bf195d798d076593c93ec8fc2c90801952409b08ede1f64a06f",
+  "prebuild_scripts": {
+    "prepare_binding_sha256": "af51642110b38d612ce3a6b4fd61a7920f4b316ff2a2564a7f175f6efe06d61b",
+    "allocation_verifier_sha256": "2cdb0694618c8c285e09236f3adabdcfe120dab86c96f8023569a0a7b8232367",
+    "create_evidence_sha256": "73a5d48ddd717ba5b05a22b8e31f95c4be8f00b02243395f85bca616a00ae699",
+    "finalize_evidence_sha256": "29ca9dc76c0ebcfbc9a6a7de162c1c5e6c84c3ac72e77c8a55b1ad665d2f866e",
+    "artifact_verifier_sha256": "12742ee6e022be1d6803e19e4791d594afeb1a0d5e2a82168ed7cd2a8cac4bc2",
+    "prebuild_test_sha256": "e855a7af083395a332ac53febce0d7e3011fb74bcd06f3b569565bb2e86a9227",
+    "functional_dry_run_sha256": "02d6cf5b4839cb3ec1e3c1157432b0664de7e93a4b31eb8193a6ecbda9b84a52"
+  },
+  "workflow_dispatch_input": {
+    "release_id": "DA-LINE-WINDOWS-20260802-8001"
+  },
+  "required_outputs": [
+    "LINE_AutoSender.exe",
+    "LINE自動發訊息_Windows候選版.zip",
+    "SBOM.cdx.json",
+    "CANDIDATE_MANIFEST.json",
+    "WINDOWS_PRIVATE_CANDIDATE_EVIDENCE.json"
+  ],
+  "build_scope": "PRIVATE_UNSIGNED_ONLY",
+  "signing_authorized": false,
+  "formal_registry_allowed": false,
+  "product_upload_allowed": false,
+  "customer_delivery_allowed": false,
+  "protected_download_allowed": false,
+  "messages_sent": 0,
+  "send_attempts": 0
+}

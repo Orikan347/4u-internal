@@ -31,6 +31,8 @@ import subprocess
 import platform
 import traceback
 import hashlib
+import hmac
+import secrets
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -81,11 +83,20 @@ IG_URL = "https://www.instagram.com/eintaixin?igsh=MWtnM2sxMnRvcHdoNg%3D%3D&utm_
 BRAND_NAME = "Orikan 李泰欣"
 BRAND_TITLE = "亞洲銷冠系統架構導師"
 APP_NAME = "LINE 自動發訊息"
-APP_VERSION = "7.1.0-candidate"
+APP_VERSION = "8.0.0"
 PRODUCT_ID = "line_automation"
 APP_ID = "line_automation_windows"
+CLIENT_ID = "deal_alliance_line_windows"
+# The controlled Windows build replaces this sentinel before PyInstaller.  An
+# unpacked source tree cannot open a browser or request an entitlement.
+RELEASE_ID = "DA-LINE-WINDOWS-20260717-8000"
 APP_CALLBACK_SCHEME = "dealalliance-line-windows"
 APP_CHANNEL = "release-candidate"
+# Filled only by the controlled Authenticode release lane. An unsigned private
+# candidate keeps these sentinels and therefore cannot enter the real LINE
+# dispatcher, while its production source remains testable with a fake runtime.
+EXPECTED_AUTHENTICODE_SUBJECT = "__DEAL_ALLIANCE_AUTHENTICODE_SUBJECT_AT_SIGN__"
+EXPECTED_AUTHENTICODE_THUMBPRINT = "__DEAL_ALLIANCE_AUTHENTICODE_THUMBPRINT_AT_SIGN__"
 
 # 色彩
 C_BG = '#4A5568'
@@ -312,13 +323,21 @@ def wait_for_title_return(chat_title, timeout=2):
 # 授權管理（線上驗證；未驗證不得進入發送流程）
 # ==========================================
 class LicenseManager:
-    """管理授權：線上驗證 → 本地快取"""
+    """管理 OAuth V2 短效工作階段；PKCE verifier 與 token 僅存程序記憶體。"""
 
     def __init__(self):
         self.data_dir = Path(os.environ.get('APPDATA', Path.home())) / 'LINE自動發訊息'
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.license_file = self.data_dir / 'license.json'
         self.data = self._load()
+        # Do not resume a legacy lease from disk.  The only persistent value is
+        # the random device identifier required for backend binding.
+        for key in ('lease_token', 'refresh_token', 'access_token', 'lease_expires_at',
+                    'verified_online', 'verified_at', 'verify_date', 'channel'):
+            self.data.pop(key, None)
+        self._save()
+        self.session = {}
+        self._oauth = {}
         self._gsheet_logger = None  # 延遲初始化
         self._license_client = None  # 共用平台授權 client，與記錄服務分離
 
@@ -349,8 +368,8 @@ class LicenseManager:
         self._save()
         return device_id
 
-    def _handoff_file(self):
-        path = self.data_dir / 'pending_handoff.txt'
+    def _callback_file(self):
+        path = self.data_dir / 'pending_oauth_callback.json'
         try:
             path.chmod(0o600)
         except Exception:
@@ -358,25 +377,37 @@ class LicenseManager:
         return path
 
     def acquire_browser_handoff(self, timeout=300):
-        """開啟成交聯盟登入頁，等待一次性 custom URL callback，再換短效 lease。"""
+        """OAuth V2 browser authorization with S256 PKCE and one-time callback."""
         client = self._get_license_client()
         if not client:
             return False, "尚未設定成交聯盟授權服務。"
+        if not self._release_binding_is_valid():
+            return False, "WIN-AUTH-CONFIG-002：此候選尚未注入核准的 release_id，程式不會開啟瀏覽器。"
 
-        pending = self._handoff_file()
+        pending = self._callback_file()
         try:
             pending.unlink(missing_ok=True)
         except Exception:
             pass
 
         from urllib.parse import urlencode
+        verifier = secrets.token_urlsafe(64)
+        state = secrets.token_urlsafe(32)
+        challenge = self._s256_challenge(verifier)
+        self._oauth = {'state': state, 'code_verifier': verifier}
         base = client.api_url.rstrip('/')
-        pair_url = base + '/app-pair?' + urlencode({
-            'product_id': PRODUCT_ID,
+        pair_url = base + '/oauth/authorize?' + urlencode({
             'app_id': APP_ID,
+            'client_id': CLIENT_ID,
+            'release_id': RELEASE_ID,
+            'product_id': PRODUCT_ID,
+            'redirect_uri': f'{APP_CALLBACK_SCHEME}://handoff',
+            'state': state,
             'device_id': self.get_device_id(),
             'platform': 'windows',
             'app_version': APP_VERSION,
+            'code_challenge': challenge,
+            'code_challenge_method': 'S256',
         })
         try:
             webbrowser.open(pair_url)
@@ -386,28 +417,47 @@ class LicenseManager:
         for _ in range(timeout):
             try:
                 if pending.exists():
-                    code = pending.read_text(encoding='utf-8').strip()
+                    callback = json.loads(pending.read_text(encoding='utf-8'))
                     pending.unlink(missing_ok=True)
-                    if not code:
+                    code = str(callback.get('code', '')).strip()
+                    callback_state = str(callback.get('state', '')).strip()
+                    expected_state = str(self._oauth.get('state', ''))
+                    verifier = str(self._oauth.get('code_verifier', ''))
+                    self._oauth = {}
+                    if not code or not verifier or not hmac.compare_digest(callback_state, expected_state):
                         return False, "授權回呼內容為空。"
-                    result = client.exchange_app_handoff(
-                        code, PRODUCT_ID, APP_ID, self.get_device_id())
-                    if result.get('status') == 'allowed' and result.get('lease_token') and result.get('lease_expires_at'):
-                        # lease 只保留在本次程序記憶體，不寫入 license.json。
-                        self.data.update({
-                            'product_id': PRODUCT_ID,
-                            'platform': 'windows',
-                            'lease_token': result['lease_token'],
-                            'lease_expires_at': result['lease_expires_at'],
-                            'verified_online': True,
-                            'verified_at': datetime.now().astimezone().isoformat(),
-                        })
+                    result = client.exchange_authorization_code(
+                        code, verifier, APP_ID, CLIENT_ID, RELEASE_ID, PRODUCT_ID,
+                        f'{APP_CALLBACK_SCHEME}://handoff', self.get_device_id(), 'windows', APP_VERSION)
+                    if (result.get('status') == 'allowed' and result.get('access_token')
+                            and result.get('refresh_token') and result.get('expires_in_seconds') is not None):
+                        self.session = self._session_from_token_response(result)
                         return True, "已透過成交聯盟登入完成授權。"
                     return False, "成交聯盟拒絕目前方案、裝置或 App 版本。"
             except Exception:
                 return False, "無法完成成交聯盟授權驗證，請確認網路後重試。"
             time.sleep(1)
         return False, "等待成交聯盟登入逾時，請重新開啟程式。"
+
+    @staticmethod
+    def _s256_challenge(verifier):
+        digest = hashlib.sha256(verifier.encode('ascii')).digest()
+        import base64
+        return base64.urlsafe_b64encode(digest).decode('ascii').rstrip('=')
+
+    @staticmethod
+    def _release_binding_is_valid():
+        import re
+        return bool(re.fullmatch(r'DA-LINE-WINDOWS-[0-9]{8}-[0-9]+', RELEASE_ID))
+
+    @staticmethod
+    def _session_from_token_response(result):
+        seconds = int(result.get('expires_in_seconds', 0))
+        return {
+            'access_token': str(result['access_token']),
+            'refresh_token': str(result['refresh_token']),
+            'expires_at': (datetime.now().astimezone() + timedelta(seconds=max(0, seconds))).isoformat(),
+        }
 
     def _get_logger(self):
         """取得可選的 GSheetLogger（只負責發送結果記錄，不負責授權）。"""
@@ -435,14 +485,10 @@ class LicenseManager:
         return self._license_client
 
     def is_licensed(self):
-        """是否有尚未到期的共用平台短效 lease。"""
-        if str(self.data.get('channel', '')).strip().lower() in ('functional-test', 'test'):
+        """是否有只存在本程序的尚未到期工作階段。"""
+        if not self._release_binding_is_valid() or not self.session.get('access_token'):
             return False
-        if self.data.get('verified_online') is not True:
-            return False
-        if not self.data.get('lease_token'):
-            return False
-        expire_str = self.data.get('lease_expires_at', '')
+        expire_str = self.session.get('expires_at', '')
         if not expire_str:
             return False
         try:
@@ -455,21 +501,8 @@ class LicenseManager:
             return False
 
     def _cache_is_usable(self):
-        """離線只允許最近 72 小時內完成線上驗證的短效快取。"""
-        if not self.is_licensed():
-            return False
-        verified_at = self.data.get('verified_at') or self.data.get('verify_date')
-        if not verified_at:
-            return False
-        try:
-            from datetime import timezone
-            stamp = datetime.fromisoformat(str(verified_at).replace('Z', '+00:00'))
-            if stamp.tzinfo is None:
-                stamp = stamp.replace(tzinfo=timezone.utc)
-            age = datetime.now(timezone.utc) - stamp.astimezone(timezone.utc)
-            return timedelta(0) <= age <= timedelta(hours=72)
-        except Exception:
-            return False
+        """OAuth V2 不使用跨程序離線快取；後台拒絕即停止。"""
+        return False
 
     def refresh_lease(self):
         """啟動／發送前向 App lease endpoint 重新驗證；不以本機快取放行。"""
@@ -480,31 +513,113 @@ class LicenseManager:
             # 沒有端點不是網路錯誤；不可把本機檔案當成線上驗證。
             return False
         try:
-            result = client.renew_app_lease(
-                self.data.get('lease_token', ''), PRODUCT_ID, APP_ID,
-                self.get_device_id(), 'windows', APP_VERSION)
+            result = client.refresh_authorization(
+                self.session.get('refresh_token', ''), APP_ID, CLIENT_ID, RELEASE_ID,
+                PRODUCT_ID, self.get_device_id(), 'windows', APP_VERSION)
         except Exception:
             return False
-        if result.get('status') == 'allowed' and result.get('lease_expires_at'):
-            self.data['lease_expires_at'] = result['lease_expires_at']
-            self.data['verified_online'] = True
-            self.data['verified_at'] = datetime.now().astimezone().isoformat()
-            return self.is_licensed()
-        self.data['verified_online'] = False
-        self.data.pop('lease_token', None)
-        self.data.pop('lease_expires_at', None)
-        return False
+        if not (result.get('status') == 'allowed' and result.get('access_token')
+                and result.get('refresh_token') and result.get('expires_in_seconds') is not None):
+            self.session = {}
+            return False
+        self.session = self._session_from_token_response(result)
+        try:
+            license_result = client.authorize_app(
+                self.session['access_token'], APP_ID, CLIENT_ID, RELEASE_ID, PRODUCT_ID,
+                self.get_device_id(), 'windows', APP_VERSION)
+        except Exception:
+            self.session = {}
+            return False
+        if license_result.get('status') != 'allowed':
+            self.session = {}
+            return False
+        return self.is_licensed()
 
     def can_use(self):
         """是否可以使用程式"""
         return self.refresh_lease()
 
+    def authorize_dispatch(self, dispatch_stage):
+        """Issue and consume one backend capability before one side-effect group."""
+        if not verify_production_signed_identity():
+            self.session = {}
+            return False
+        if not self.refresh_lease():
+            return False
+        client = self._get_license_client()
+        access_token = self.session.get('access_token', '')
+        if not client or not access_token or not isinstance(dispatch_stage, str) or not dispatch_stage:
+            self.session = {}
+            return False
+        device_id = self.get_device_id()
+        try:
+            issued = client.issue_live_dispatch(
+                access_token, APP_ID, CLIENT_ID, RELEASE_ID, PRODUCT_ID,
+                device_id, 'windows', APP_VERSION, dispatch_stage)
+            capability_token = str(issued.get('capability_token', '')).strip()
+            expires_in = issued.get('expires_in_seconds')
+            if not (issued.get('status') == 'allowed'
+                    and issued.get('operation') == 'live_dispatch'
+                    and capability_token
+                    and issued.get('recipient_count') == 1
+                    and issued.get('message_count') == 1
+                    and issued.get('retry_count') == 0
+                    and isinstance(expires_in, (int, float)) and 0 < expires_in <= 60):
+                self.session = {}
+                return False
+            consumed = client.consume_live_dispatch(
+                access_token, capability_token, APP_ID, CLIENT_ID, RELEASE_ID, PRODUCT_ID,
+                device_id, 'windows', APP_VERSION, dispatch_stage)
+            if not (consumed.get('status') == 'allowed'
+                    and consumed.get('operation') == 'live_dispatch'
+                    and consumed.get('consumed') is True
+                    and consumed.get('recipient_count') == 1
+                    and consumed.get('message_count') == 1
+                    and consumed.get('retry_count') == 0):
+                self.session = {}
+                return False
+            return True
+        except Exception:
+            self.session = {}
+            return False
+
     def get_status_text(self):
         """取得授權狀態說明"""
         if self.is_licensed():
-            expire = self.data.get('lease_expires_at', '')
+            expire = self.session.get('expires_at', '')
             return f"已授權（短效憑證至：{expire}）", C_GREEN
         return "尚未完成授權驗證", C_RED
+
+
+def verify_production_signed_identity():
+    """Names-only Authenticode self-readback; unsigned/source runs fail closed."""
+    if sys.platform != 'win32' or not getattr(sys, 'frozen', False):
+        return False
+    if (EXPECTED_AUTHENTICODE_SUBJECT.startswith('__')
+            or EXPECTED_AUTHENTICODE_THUMBPRINT.startswith('__')):
+        return False
+    executable = str(Path(sys.executable).resolve())
+    command = (
+        "$s=Get-AuthenticodeSignature -LiteralPath $args[0];"
+        "$c=$s.SignerCertificate;"
+        "[ordered]@{Status=[string]$s.Status;Subject=[string]$c.Subject;"
+        "Thumbprint=[string]$c.Thumbprint}|ConvertTo-Json -Compress"
+    )
+    try:
+        completed = subprocess.run(
+            ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', command, executable],
+            capture_output=True, text=True, timeout=15, check=False,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+        )
+        if completed.returncode != 0:
+            return False
+        observed = json.loads(completed.stdout)
+        return (observed.get('Status') == 'Valid'
+                and hmac.compare_digest(str(observed.get('Subject', '')).strip(), EXPECTED_AUTHENTICODE_SUBJECT)
+                and hmac.compare_digest(str(observed.get('Thumbprint', '')).replace(' ', '').upper(),
+                                        EXPECTED_AUTHENTICODE_THUMBPRINT.replace(' ', '').upper()))
+    except Exception:
+        return False
 
 
 # ==========================================
@@ -926,7 +1041,8 @@ def build_send_fingerprint(send_type, msg_text="", img_path=""):
 # 發送核心邏輯 v2.0
 # ==========================================
 def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
-                  gsheet_logger=None, add_name=False, error_cb=None):
+                  gsheet_logger=None, add_name=False, error_cb=None,
+                  authorization_cb=None):
     """
     v2.0：加入視窗標題偵測 + 逐筆好友紀錄 + 進度百分比
     """
@@ -944,14 +1060,31 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
     # 訊息摘要（用於 Google Sheet）
     msg_summary = msg_text[:50] if msg_text else f"[{type_label}]"
 
-    # 保存用戶原有的剪貼簿內容
+    def require_dispatch_authorization(stage):
+        try:
+            allowed = callable(authorization_cb) and authorization_cb(stage) is True
+        except Exception:
+            allowed = False
+        if not allowed:
+            raise_send_error(
+                "WIN-AUTH-003",
+                "即時授權或程式簽章已失效",
+                "成交聯盟目前不允許這個正式程式執行此步驟；程式已停止，沒有新增發送。",
+                f"dispatch_stage={stage}"
+            )
+
     original_clipboard = ""
     try:
-        original_clipboard = pyperclip.paste()
-    except Exception:
-        pass
-
-    try:
+        # Direct CLI/import invocation without the production authorization
+        # dependency is rejected before LINE, keyboard, or clipboard access.
+        require_dispatch_authorization("batch_start")
+        # Only read the clipboard after a one-time backend capability was
+        # issued and consumed for this exact production tuple.
+        original_clipboard = ""
+        try:
+            original_clipboard = pyperclip.paste()
+        except Exception:
+            pass
         for i in range(2, 0, -1):
             if STOP_FLAG:
                 done_cb(sent, True); return
@@ -973,6 +1106,8 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
         for i in range(1, count + 1):
             if STOP_FLAG:
                 break
+
+            require_dispatch_authorization(f"recipient_{i}_enter")
 
             pct = int((i - 1) / count * 100)
             progress_cb(f"📊 {i-1}/{count} 完成（{pct}%）", f"正在準備第 {i} 位...")
@@ -1053,6 +1188,8 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                 # 避免誤將 LINE 標題當作姓名。
                 final_msg = msg_text
 
+                require_dispatch_authorization(f"recipient_{i}_text_message")
+
                 if not set_clipboard_text_verified(final_msg):
                     raise_send_error(
                         "WIN-CLIP-001",
@@ -1084,6 +1221,8 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             if send_type in ('image', 'both'):
                 require_english_input_method(f"before_image_paste:{i}")
 
+                require_dispatch_authorization(f"recipient_{i}_image_message")
+
                 if copy_image_to_clipboard(img_path):
                     time.sleep(0.2)
                     if not verify_image_clipboard():
@@ -1110,6 +1249,7 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             last_send_fingerprint = planned_send_fingerprint
 
             # 離開聊天室
+            require_dispatch_authorization(f"recipient_{i}_exit")
             pyautogui.press('escape')
             time.sleep(0.35)
 
@@ -1891,7 +2031,7 @@ class LineAutoSenderApp:
             target=send_messages,
             args=(t, self.msg_text, self.img_path, self.count,
                   self._update_progress, self._on_done, self.gsheet_logger,
-                  False, self._show_error),
+                  False, self._show_error, self.license_mgr.authorize_dispatch),
             daemon=True).start()
 
     def _stop_send(self):
@@ -2207,41 +2347,27 @@ class SurveyWindow:
 # ==========================================
 def run_no_send_self_test():
     """Run only deterministic pure helpers; never create a UI or touch LINE."""
-    try:
-        checks = {
-            "clean_name_returns_value": bool(clean_friend_name("LINE 小明｜測試")),
-            "fingerprint_stable": build_send_fingerprint("text", "假資料訊息")
-                == build_send_fingerprint("text", "假資料訊息"),
-            "fingerprint_distinguishes_content": build_send_fingerprint("text", "假資料訊息")
-                != build_send_fingerprint("text", "另一則假資料訊息"),
-            "release_channel_constant": APP_CHANNEL == "release-candidate",
-            "short_lease_contract_constant": PRODUCT_ID == "line_automation" and APP_ID == "line_automation_windows",
-        }
-        report = {
-            "suite": "LINE Windows EXE self-test no-send",
-            "overall": "PASS" if all(checks.values()) else "FAIL",
-            "checks": checks,
-            "real_data": False,
-            "external_actions": [],
-            "line_ui_opened": False,
-            "keyboard_or_clipboard_used": False,
-        }
-    except Exception as exc:
-        # A windowed PyInstaller build hides stderr. Persist only a bounded,
-        # non-sensitive diagnostic so the CI gate can explain a failed test.
-        report = {
-            "suite": "LINE Windows EXE self-test no-send",
-            "overall": "FAIL",
-            "error_type": type(exc).__name__,
-            "error": str(exc)[:500],
-            "real_data": False,
-            "external_actions": [],
-            "line_ui_opened": False,
-            "keyboard_or_clipboard_used": False,
-        }
+    checks = {
+        "clean_name_returns_value": bool(clean_friend_name("LINE 小明｜測試")),
+        "fingerprint_stable": build_send_fingerprint("text", "假資料訊息")
+            == build_send_fingerprint("text", "假資料訊息"),
+        "fingerprint_distinguishes_content": build_send_fingerprint("text", "假資料訊息")
+            != build_send_fingerprint("text", "另一則假資料訊息"),
+        "release_channel_constant": APP_CHANNEL == "release-candidate",
+        "short_lease_contract_constant": PRODUCT_ID == "line_automation" and APP_ID == "line_automation_windows",
+    }
+    report = {
+        "suite": "LINE Windows EXE self-test no-send",
+        "overall": "PASS" if all(checks.values()) else "FAIL",
+        "checks": checks,
+        "real_data": False,
+        "external_actions": [],
+        "line_ui_opened": False,
+        "keyboard_or_clipboard_used": False,
+    }
     report_path = os.environ.get("LINE_SELF_TEST_REPORT", "")
     if report_path:
-        Path(report_path).write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+        Path(report_path).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0 if report["overall"] == "PASS" else 1
 
 
@@ -2275,12 +2401,14 @@ def handle_callback_argument():
         if not value.lower().startswith(APP_CALLBACK_SCHEME + '://handoff'):
             continue
         try:
-            code = parse_qs(urlparse(value).query).get('handoff_code', [''])[0].strip()
-            if code:
+            query = parse_qs(urlparse(value).query)
+            code = query.get('code', [''])[0].strip()
+            state = query.get('state', [''])[0].strip()
+            if code and state:
                 target = Path(os.environ.get('APPDATA', Path.home())) / 'LINE自動發訊息'
                 target.mkdir(parents=True, exist_ok=True)
-                pending = target / 'pending_handoff.txt'
-                pending.write_text(code, encoding='utf-8')
+                pending = target / 'pending_oauth_callback.json'
+                pending.write_text(json.dumps({'code': code, 'state': state}), encoding='utf-8')
                 try:
                     pending.chmod(0o600)
                 except Exception:

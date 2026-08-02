@@ -53,37 +53,101 @@ class LicenseAPIClient:
     def __init__(self, api_url):
         self.api_url = normalize_license_api_url(api_url)
 
-    def _post(self, path, payload):
+    def _post(self, path, payload, bearer_token=""):
         if not self.api_url:
             raise RuntimeError("未設定成交聯盟授權 API")
+        headers = {"Content-Type": "application/json"}
+        if bearer_token:
+            headers["Authorization"] = f"Bearer {bearer_token}"
         req = Request(
             f"{self.api_url}{path}",
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
         with urlopen(req, timeout=15) as resp:
             return json.loads(resp.read().decode("utf-8"))
 
-    def exchange_app_handoff(self, handoff_code, product_id, app_id, device_id):
-        """用瀏覽器登入後的一次性 code 換取短效 App lease。"""
-        return self._post("/api/apps/handoff/exchange", {
-            "handoff_code": handoff_code,
-            "product_id": product_id,
+    def exchange_authorization_code(self, code, code_verifier, app_id, client_id, release_id,
+                                    product_id, redirect_uri, device_id, platform_name, app_version):
+        """OAuth V2 code exchange. The verifier is supplied by memory only."""
+        return self._post("/api/apps/token", {
+            "grant_type": "authorization_code",
+            "code": code,
+            "code_verifier": code_verifier,
             "app_id": app_id,
-            "device_id": device_id,
-        })
-
-    def renew_app_lease(self, lease_token, product_id, app_id, device_id,
-                        platform_name, app_version):
-        """高風險動作前重新向平台查方案、裝置、版本與停權狀態。"""
-        return self._post("/api/apps/lease/renew", {
-            "lease_token": lease_token,
+            "client_id": client_id,
+            "release_id": release_id,
             "product_id": product_id,
-            "app_id": app_id,
+            "redirect_uri": redirect_uri,
             "device_id": device_id,
             "platform": platform_name,
             "app_version": app_version,
         })
+
+    def refresh_authorization(self, refresh_token, app_id, client_id, release_id,
+                              product_id, device_id, platform_name, app_version):
+        """Refresh only a memory-resident OAuth V2 session before LINE actions."""
+        return self._post("/api/apps/token", {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "app_id": app_id,
+            "client_id": client_id,
+            "release_id": release_id,
+            "product_id": product_id,
+            "device_id": device_id,
+            "platform": platform_name,
+            "app_version": app_version,
+        })
+
+    def authorize_app(self, access_token, app_id, client_id, release_id,
+                      product_id, device_id, platform_name, app_version):
+        """The backend remains authoritative for product, device, version and status."""
+        return self._post("/api/apps/license", {
+            "app_id": app_id,
+            "client_id": client_id,
+            "release_id": release_id,
+            "product_id": product_id,
+            "device_id": device_id,
+            "platform": platform_name,
+            "app_version": app_version,
+        }, bearer_token=access_token)
+
+    def issue_live_dispatch(self, access_token, app_id, client_id, release_id,
+                            product_id, device_id, platform_name, app_version, dispatch_stage):
+        """Issue one short, non-cacheable capability for one side-effect group."""
+        _ = dispatch_stage  # local audit only; backend contract does not echo it
+        return self._post("/api/apps/capabilities/live-dispatch", {
+            "app_id": app_id,
+            "client_id": client_id,
+            "release_id": release_id,
+            "product_id": product_id,
+            "device_id": device_id,
+            "platform": platform_name,
+            "app_version": app_version,
+            "operation": "live_dispatch",
+            "recipient_count": 1,
+            "message_count": 1,
+            "retry_count": 0,
+        }, bearer_token=access_token)
+
+    def consume_live_dispatch(self, access_token, capability_token, app_id, client_id, release_id,
+                              product_id, device_id, platform_name, app_version, dispatch_stage):
+        """Consume the exact capability once before any LINE/input side effect."""
+        _ = dispatch_stage  # local audit only; backend contract does not echo it
+        return self._post("/api/apps/capabilities/live-dispatch/consume", {
+            "capability_token": capability_token,
+            "app_id": app_id,
+            "client_id": client_id,
+            "release_id": release_id,
+            "product_id": product_id,
+            "device_id": device_id,
+            "platform": platform_name,
+            "app_version": app_version,
+            "operation": "live_dispatch",
+            "recipient_count": 1,
+            "message_count": 1,
+            "retry_count": 0,
+        }, bearer_token=access_token)
 
 
 def load_license_api_url():

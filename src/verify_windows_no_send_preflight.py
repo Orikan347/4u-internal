@@ -34,6 +34,8 @@ def main() -> int:
         "def activate_license", "def issue_lease", "啟用授權碼",
         "DEFAULT_LICENSE_API_URL", "deal-alliance-license-staging",
         "/app-pair", "/api/apps/handoff/exchange", "/api/apps/lease/renew", "handoff_code",
+        "FUNCTIONAL_TEST_NO_AUTH = True", "return FUNCTIONAL_TEST_CHANNEL and FUNCTIONAL_TEST_NO_AUTH",
+        '"capability_id"',
     )
     for token in forbidden:
         require(token not in source and token not in helper, "WIN-PREFLIGHT-002", f"Forbidden token absent: {token}", results)
@@ -49,6 +51,11 @@ def main() -> int:
         "register_callback_protocol", "handle_callback_argument",
         r"Software\Classes\dealalliance-line-windows", "pending_oauth_callback.json",
         "if handle_callback_argument():", "register_callback_protocol()",
+        "def authorize_dispatch(self, dispatch_stage)", "verify_production_signed_identity",
+        "authorization_cb=None", "require_dispatch_authorization",
+        "authorization_cb(stage)", "capability_token", "operation') == 'live_dispatch'",
+        "WIN-AUTH-003", "EXPECTED_AUTHENTICODE_SUBJECT",
+        "EXPECTED_AUTHENTICODE_THUMBPRINT",
     )
     for token in required_source:
         require(token in source, "WIN-PREFLIGHT-003", f"Required source guard present: {token}", results)
@@ -83,6 +90,10 @@ def main() -> int:
     required_helper = (
         "normalize_license_api_url", "LICENSE_API_ENV", "exchange_authorization_code",
         "refresh_authorization", "authorize_app", "/api/apps/token", "/api/apps/license",
+        "issue_live_dispatch", "consume_live_dispatch",
+        "/api/apps/capabilities/live-dispatch", "/api/apps/capabilities/live-dispatch/consume",
+        '"capability_token"', '"operation": "live_dispatch"',
+        '"recipient_count": 1', '"message_count": 1', '"retry_count": 0',
         "grant_type", "authorization_code", "refresh_token", "code_verifier", "release_id",
     )
     for token in required_helper:
