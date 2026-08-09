@@ -1,16 +1,17 @@
 {
-  "schema_version": "line_windows_bound_source_v1",
+  "schema_version": "line_windows_bound_source_v2",
   "status": "LOCAL_BINDING_PREPARED_NOT_SERVER_REGISTERED",
-  "release_id": "DA-LINE-WINDOWS-20260802-8001",
-  "version": "8.0.1",
+  "release_id": "DA-LINE-WINDOWS-20260809-8002",
+  "version": "8.0.2",
+  "build": "8002",
   "app_id": "line_automation_windows",
   "client_id": "deal_alliance_line_windows",
   "product_id": "line_automation",
   "platform": "windows",
   "callback": "dealalliance-line-windows://handoff",
   "pkce": "S256",
-  "template_source_sha256": "e4fbfb4a96e1bd24ac49c8f336524c709894ba8bbb5205bf4a0dd5ed01445ed4",
-  "bound_source_sha256": "d85a75dde5892a799fb9f0d952c2ffe2397fc689db5bd40dc3b39bdf92a2a907",
+  "template_source_sha256": "bf4edcf0cedabb422305066ac0a2a1f4d39cb4b4fb7ecfadecac2c0269541148",
+  "bound_source_sha256": "b1d70ee04af4b2fd2a1ccda73600354dd048877f841c0629084314aa9fc6dbfc",
   "real_data": false,
   "external_actions": []
 }

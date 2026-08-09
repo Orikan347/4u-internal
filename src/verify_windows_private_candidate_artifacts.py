@@ -33,6 +33,11 @@ def main() -> int:
     parser.add_argument("--exe", type=Path, required=True)
     parser.add_argument("--package", type=Path, required=True)
     parser.add_argument("--final-evidence", type=Path, required=True)
+    parser.add_argument("--release-id", required=True)
+    parser.add_argument("--version", required=True)
+    parser.add_argument("--build", required=True)
+    parser.add_argument("--bound-source-sha256", required=True)
+    parser.add_argument("--backend-contract-sha256", required=True)
     parser.add_argument("--allow-test-fixture", action="store_true")
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -42,20 +47,20 @@ def main() -> int:
 
     check(results, "WIN-ARTIFACT-001", not fixture or args.allow_test_fixture,
           "Test fixtures require an explicit verifier flag and can never become candidates.")
-    check(results, "WIN-ARTIFACT-002", manifest.get("release_id") == "DA-LINE-WINDOWS-20260802-8001"
-          and manifest.get("version") == "8.0.1" and manifest.get("app_id") == "line_automation_windows"
+    check(results, "WIN-ARTIFACT-002", manifest.get("release_id") == args.release_id
+          and manifest.get("version") == args.version and str(manifest.get("build")) == args.build
+          and manifest.get("app_id") == "line_automation_windows"
           and manifest.get("client_id") == "deal_alliance_line_windows"
           and manifest.get("product_id") == "line_automation"
           and manifest.get("platform") == "windows"
           and manifest.get("callback") == "dealalliance-line-windows://handoff"
           and manifest.get("pkce") == "S256"
-          and manifest.get("backend_contract_sha256")
-          == "93092b1d3dc2d8e26842c11e9d7b8b55374bc90e8ba74cdba96d28ffe2633c5d",
+          and manifest.get("backend_contract_sha256") == args.backend_contract_sha256,
           "Exact allocated Windows identity is present.")
     hashes = manifest.get("hashes", {})
     check(results, "WIN-ARTIFACT-003", hashes.get("binary_sha256") == sha256(args.exe)
           and hashes.get("sbom_sha256") == sha256(args.sbom)
-          and hashes.get("bound_source_sha256") == "d85a75dde5892a799fb9f0d952c2ffe2397fc689db5bd40dc3b39bdf92a2a907",
+          and hashes.get("bound_source_sha256") == args.bound_source_sha256,
           "Binary, SBOM and release-bound source hashes are exact.")
     evidence_hashes = evidence.get("hashes", {})
     check(results, "WIN-ARTIFACT-004", evidence.get("release_id") == manifest.get("release_id")

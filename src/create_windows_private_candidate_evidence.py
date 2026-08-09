@@ -66,22 +66,24 @@ def main() -> int:
     self_test = json.loads(args.self_test_report.read_text(encoding="utf-8"))
     release_id = allocation.get("release_id")
     version = allocation.get("version")
-    expected_template = allocation.get("template_source_sha256")
+    expected_source = allocation.get("source_sha256")
     expected_bound = allocation.get("bound_source_sha256")
     expected_helper = allocation.get("helper_sha256")
     if not all((
-        allocation.get("evidence_status") == "PRIVATE_SUCCESSOR_IDENTITY_ALLOCATED_BUILD_ONLY",
+        allocation.get("status") == "IDENTITY_ALLOCATED_SUCCESSOR_SAFE_ZERO_OUTPUT_NOT_GRANTED",
+        allocation.get("schema_version") == "DA-LINE-WINDOWS-SUCCESSOR-ALLOCATION-2026-08-09.1",
         allocation.get("backend_contract_sha256") == EXPECTED_BACKEND_CONTRACT_SHA256,
-        allocation.get("unsigned_artifact_rebuild_preflight_allowed") is True,
-        allocation.get("authenticode_allowed") is False,
-        allocation.get("customer_delivery_allowed") is False,
         args.release_id == release_id == binding.get("release_id"),
         version == binding.get("version"),
-        binding.get("template_source_sha256") == expected_template,
+        str(allocation.get("build")) == str(binding.get("build")),
+        binding.get("source_sha256") == expected_source,
         binding.get("bound_source_sha256") == expected_bound,
         sha256(args.bound_source) == expected_bound,
         sha256(args.helper) == expected_helper,
         len(args.exe.read_bytes()) > 0,
+        all(allocation.get("gates", {}).get(key) is False for key in (
+            "authenticode", "deployment", "protected_download", "line_launch", "line_send",
+        )),
     )):
         raise SystemExit("WIN-EVIDENCE-002: source or binding drift")
     if not all((
@@ -131,7 +133,8 @@ def main() -> int:
         "pkce": "S256",
         "backend_contract_sha256": EXPECTED_BACKEND_CONTRACT_SHA256,
         "hashes": {
-            "template_source_sha256": expected_template,
+            "source_sha256": expected_source,
+            "template_source_sha256": expected_source,
             "bound_source_sha256": sha256(args.bound_source),
             "helper_sha256": sha256(args.helper),
             "binary_sha256": sha256(args.exe),

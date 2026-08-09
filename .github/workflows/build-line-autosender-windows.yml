@@ -1,23 +1,49 @@
-name: Build private LINE Auto Sender Windows candidate
+name: Build private LINE Auto Sender Windows successor
 
 on:
-  push:
-    branches:
-      - line-autosender-windows-private-8001-20260802
   workflow_dispatch:
     inputs:
-      release_id:
-        description: "Backend-registered DA-LINE-WINDOWS-YYYYMMDD-BUILD binding"
+      allocation_path:
+        description: "Release Security allocation JSON path"
+        required: true
+        type: string
+      allocation_sha256:
+        description: "Exact allocation SHA-256"
+        required: true
+        type: string
+      guard_path:
+        description: "Release Security build guard JSON path"
+        required: true
+        type: string
+      guard_sha256:
+        description: "Exact guard SHA-256"
+        required: true
+        type: string
+      authorization_input_path:
+        description: "Fresh private one-time authorization JSON path"
+        required: true
+        type: string
+      authorization_input_sha256:
+        description: "Exact one-time authorization SHA-256"
         required: true
         type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: line-windows-successor-${{ inputs.authorization_input_sha256 }}
+  cancel-in-progress: false
+
 env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
-  RELEASE_ID: "${{ inputs.release_id || 'DA-LINE-WINDOWS-20260802-8001' }}"
+  ALLOCATION_PATH: "${{ inputs.allocation_path }}"
+  ALLOCATION_SHA256: "${{ inputs.allocation_sha256 }}"
+  GUARD_PATH: "${{ inputs.guard_path }}"
+  GUARD_SHA256: "${{ inputs.guard_sha256 }}"
+  AUTHORIZATION_INPUT_PATH: "${{ inputs.authorization_input_path }}"
+  AUTHORIZATION_INPUT_SHA256: "${{ inputs.authorization_input_sha256 }}"
 
 jobs:
   build-windows-exe:
@@ -32,143 +58,337 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Inject OAuth V2 release binding
+      - name: Exact successor authority preflight and zero-output gate
+        id: authority
         shell: pwsh
         run: |
-          $releaseId = $env:RELEASE_ID
-          $allocation = Get-Content -Raw "release_evidence/CURRENT_SUCCESSOR_RELEASE_ALLOCATION.json" | ConvertFrom-Json
-          if ($releaseId -ne $allocation.release_id) { throw "WIN-BUILD-RELEASE-001: release_id differs from current successor allocation" }
-          $sourcePath = "src/LINE自動發訊息_Windows.pyw"
-          python src/prepare_windows_release_binding.py $sourcePath $releaseId --version $allocation.version --bound-source release_binding/LINE自動發訊息_Windows.pyw --binding-output release_binding/BOUND_SOURCE_MANIFEST.json
-          Copy-Item "src/gsheet_helper.py" "release_binding/gsheet_helper.py"
+          $ErrorActionPreference = "Stop"
+          function Fail([string]$code, [string]$message) { throw "$code`: $message" }
+          function Sha256([string]$path) {
+            if (!(Test-Path -LiteralPath $path -PathType Leaf)) { Fail "WIN-SUCCESSOR-INPUT-001" "required input is missing" }
+            return (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+          }
+          function RequireRelative([string]$name, [string]$value) {
+            if ([string]::IsNullOrWhiteSpace($value) -or [IO.Path]::IsPathRooted($value) -or $value.Replace('\', '/').Split('/') -contains '..') {
+              Fail "WIN-SUCCESSOR-PATH-006" "$name must be a non-empty repository-relative path"
+            }
+          }
+          function ExportEnv([string]$name, [string]$value) {
+            if ($value.Contains("`n") -or $value.Contains("`r")) { Fail "WIN-SUCCESSOR-ENV-007" "$name contains a newline" }
+            "$name=$value" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
 
-      - name: Verify Release Security allocation binds this exact source
+          foreach ($value in @($env:ALLOCATION_SHA256, $env:GUARD_SHA256, $env:AUTHORIZATION_INPUT_SHA256)) {
+            if ($value -notmatch '^[0-9a-fA-F]{64}$') { Fail "WIN-SUCCESSOR-HASH-003" "dispatch hash format is invalid" }
+          }
+          RequireRelative "allocation_path" $env:ALLOCATION_PATH
+          RequireRelative "guard_path" $env:GUARD_PATH
+          RequireRelative "authorization_input_path" $env:AUTHORIZATION_INPUT_PATH
+          if ((Sha256 $env:ALLOCATION_PATH) -ne $env:ALLOCATION_SHA256.ToLowerInvariant()) { Fail "WIN-SUCCESSOR-HASH-003" "allocation hash mismatch" }
+          if ((Sha256 $env:GUARD_PATH) -ne $env:GUARD_SHA256.ToLowerInvariant()) { Fail "WIN-SUCCESSOR-HASH-003" "guard hash mismatch" }
+          if ((Sha256 $env:AUTHORIZATION_INPUT_PATH) -ne $env:AUTHORIZATION_INPUT_SHA256.ToLowerInvariant()) { Fail "WIN-SUCCESSOR-HASH-003" "authorization input hash mismatch" }
+
+          $allocation = Get-Content -Raw -Encoding utf8 $env:ALLOCATION_PATH | ConvertFrom-Json
+          $guard = Get-Content -Raw -Encoding utf8 $env:GUARD_PATH | ConvertFrom-Json
+          $authorization = Get-Content -Raw -Encoding utf8 $env:AUTHORIZATION_INPUT_PATH | ConvertFrom-Json
+          $workflowPath = ".github/workflows/build-line-autosender-windows.yml"
+          $workflowSha = Sha256 $workflowPath
+
+          $identityKeys = @("release_id", "version", "build", "app_id", "client_id", "product_id", "platform", "callback", "pkce", "source_path", "source_sha256", "bound_source_sha256", "helper_path", "helper_sha256", "functional_test_path", "functional_test_sha256", "backend_contract_sha256")
+          foreach ($key in $identityKeys) {
+            $a = [string]$allocation.$key
+            $g = [string]$guard.$key
+            $i = [string]$authorization.$key
+            if ([string]::IsNullOrWhiteSpace($a) -or $a -ne $g -or $a -ne $i) { Fail "WIN-SUCCESSOR-IDENTITY-002" "$key does not match across allocation, guard and authorization input" }
+          }
+          if ($allocation.release_id -notmatch '^DA-LINE-WINDOWS-[0-9]{8}-[0-9]+$' -or $allocation.version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $allocation.build -notmatch '^[0-9]+$') {
+            Fail "WIN-SUCCESSOR-IDENTITY-002" "release/version/build format is invalid"
+          }
+          if ($allocation.app_id -ne "line_automation_windows" -or $allocation.client_id -ne "deal_alliance_line_windows" -or $allocation.product_id -ne "line_automation" -or $allocation.platform -ne "windows" -or $allocation.callback -ne "dealalliance-line-windows://handoff" -or $allocation.pkce -ne "S256") {
+            Fail "WIN-SUCCESSOR-IDENTITY-002" "Windows production OAuth tuple is invalid"
+          }
+          if ($allocation.predecessor_release_reuse_forbidden -ne $true -or $guard.predecessor_release_reuse_forbidden -ne $true -or $authorization.predecessor_release_reuse_forbidden -ne $true) {
+            Fail "WIN-SUCCESSOR-IDENTITY-002" "predecessor release reuse must remain forbidden"
+          }
+
+          foreach ($document in @($allocation, $guard, $authorization)) {
+            if ([string]$document.workflow_path -ne $workflowPath -or [string]$document.workflow_sha256 -ne $workflowSha) {
+              Fail "WIN-SUCCESSOR-HASH-003" "workflow path/hash binding mismatch"
+            }
+          }
+          if ([string]$guard.allocation_path -ne $env:ALLOCATION_PATH -or [string]$guard.allocation_sha256 -ne $env:ALLOCATION_SHA256.ToLowerInvariant()) {
+            Fail "WIN-SUCCESSOR-HASH-003" "guard does not bind the exact allocation"
+          }
+          if ([string]$authorization.allocation_path -ne $env:ALLOCATION_PATH -or [string]$authorization.allocation_sha256 -ne $env:ALLOCATION_SHA256.ToLowerInvariant() -or [string]$authorization.guard_path -ne $env:GUARD_PATH -or [string]$authorization.guard_sha256 -ne $env:GUARD_SHA256.ToLowerInvariant()) {
+            Fail "WIN-SUCCESSOR-HASH-003" "authorization input does not bind allocation and guard"
+          }
+          $toolingA = @($allocation.tooling_files)
+          $toolingG = @($guard.tooling_files)
+          $toolingI = @($authorization.tooling_files)
+          if ($toolingA.Count -lt 7 -or $toolingA.Count -ne $toolingG.Count -or $toolingA.Count -ne $toolingI.Count) {
+            Fail "WIN-SUCCESSOR-HASH-003" "tooling hash roster is missing or inconsistent"
+          }
+          for ($index = 0; $index -lt $toolingA.Count; $index++) {
+            $path = [string]$toolingA[$index].path
+            $hash = [string]$toolingA[$index].sha256
+            RequireRelative "tooling_files.path" $path
+            if ($path -ne [string]$toolingG[$index].path -or $path -ne [string]$toolingI[$index].path -or
+                $hash -ne [string]$toolingG[$index].sha256 -or $hash -ne [string]$toolingI[$index].sha256 -or
+                (Sha256 $path) -ne $hash) {
+              Fail "WIN-SUCCESSOR-HASH-003" "tooling file hash mismatch"
+            }
+          }
+          if ([string]$authorization.file_mode -ne "0600" -or $authorization.private_input -ne $true) {
+            Fail "WIN-SUCCESSOR-AUTH-008" "authorization input is not marked as a private 0600 file"
+          }
+          if ($authorization.granted -ne $true -or $authorization.build_authorized -ne $true -or $authorization.consumed -ne $false -or [int]$authorization.maximum_build_attempts -ne 1 -or [string]::IsNullOrWhiteSpace([string]$authorization.nonce)) {
+            Fail "WIN-SUCCESSOR-REPLAY-004" "authorization is not fresh, granted, unused and one-shot"
+          }
+
+          RequireRelative "source_path" ([string]$allocation.source_path)
+          RequireRelative "helper_path" ([string]$allocation.helper_path)
+          RequireRelative "functional_test_path" ([string]$allocation.functional_test_path)
+          if ((Sha256 ([string]$allocation.source_path)) -ne [string]$allocation.source_sha256) { Fail "WIN-SUCCESSOR-HASH-003" "source hash mismatch" }
+          if ((Sha256 ([string]$allocation.helper_path)) -ne [string]$allocation.helper_sha256) { Fail "WIN-SUCCESSOR-HASH-003" "helper hash mismatch" }
+          if ((Sha256 ([string]$allocation.functional_test_path)) -ne [string]$allocation.functional_test_sha256) { Fail "WIN-SUCCESSOR-HASH-003" "functional test hash mismatch" }
+          $sourceBytes = [IO.File]::ReadAllBytes([string]$allocation.source_path)
+          $helperBytes = [IO.File]::ReadAllBytes([string]$allocation.helper_path)
+          if ([Text.Encoding]::UTF8.GetString($sourceBytes).Contains("`r`n") -or [Text.Encoding]::UTF8.GetString($helperBytes).Contains("`r`n")) {
+            Fail "WIN-SUCCESSOR-ENCODING-009" "source/helper must remain UTF-8 with LF line endings"
+          }
+
+          $outputKeys = @(
+            "bound_source_path", "binding_manifest_path", "binding_helper_path",
+            "pyinstaller_work_path", "pyinstaller_spec_path", "gui_exe_path", "self_test_source_path", "self_test_exe_path",
+            "functional_report_path", "self_test_report_path", "candidate_directory",
+            "candidate_exe_path", "candidate_manifest_path", "candidate_sbom_path",
+            "package_path", "final_evidence_path", "artifact_name"
+          )
+          foreach ($key in $outputKeys) {
+            $a = [string]$allocation.output_contract.$key
+            $g = [string]$guard.output_contract.$key
+            $i = [string]$authorization.output_contract.$key
+            if ([string]::IsNullOrWhiteSpace($a) -or $a -ne $g -or $a -ne $i) { Fail "WIN-SUCCESSOR-OUTPUT-005" "$key does not match across exact inputs" }
+            if ($key -ne "artifact_name") { RequireRelative $key $a }
+          }
+          $allowA = @($allocation.output_contract.zip_allowlist)
+          $allowG = @($guard.output_contract.zip_allowlist)
+          $allowI = @($authorization.output_contract.zip_allowlist)
+          if ($allowA.Count -lt 3 -or ($allowA -join "`n") -ne ($allowG -join "`n") -or ($allowA -join "`n") -ne ($allowI -join "`n")) {
+            Fail "WIN-SUCCESSOR-OUTPUT-005" "ZIP allowlist is missing or inconsistent"
+          }
+          foreach ($pathKey in $outputKeys | Where-Object { $_ -ne "artifact_name" }) {
+            $path = [string]$allocation.output_contract.$pathKey
+            if (Test-Path -LiteralPath $path) { Fail "WIN-SUCCESSOR-OUTPUT-005" "pre-existing output rejected: $pathKey" }
+          }
+          if ([string]$allocation.source_path -eq [string]$allocation.output_contract.bound_source_path) {
+            Fail "WIN-SUCCESSOR-OUTPUT-005" "source and bound output must be different paths"
+          }
+
+          ExportEnv "RELEASE_ID" ([string]$allocation.release_id)
+          ExportEnv "RELEASE_VERSION" ([string]$allocation.version)
+          ExportEnv "RELEASE_BUILD" ([string]$allocation.build)
+          ExportEnv "SOURCE_PATH" ([string]$allocation.source_path)
+          ExportEnv "SOURCE_SHA256" ([string]$allocation.source_sha256)
+          ExportEnv "HELPER_PATH" ([string]$allocation.helper_path)
+          ExportEnv "FUNCTIONAL_TEST_PATH" ([string]$allocation.functional_test_path)
+          ExportEnv "EXPECTED_BOUND_SOURCE_SHA256" ([string]$allocation.bound_source_sha256)
+          foreach ($key in $outputKeys) { ExportEnv $key.ToUpperInvariant() ([string]$allocation.output_contract.$key) }
+          ExportEnv "ZIP_ALLOWLIST_JSON" ($allowA | ConvertTo-Json -Compress)
+          ExportEnv "BACKEND_CONTRACT_SHA256" ([string]$allocation.backend_contract_sha256)
+          ExportEnv "BUILD_GATE_OPEN" "true"
+          "artifact_name=$([string]$allocation.output_contract.artifact_name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "package_path=$([string]$allocation.output_contract.package_path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "final_evidence_path=$([string]$allocation.output_contract.final_evidence_path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "functional_report_path=$([string]$allocation.output_contract.functional_report_path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "self_test_report_path=$([string]$allocation.output_contract.self_test_report_path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "SUCCESSOR_AUTHORITY_PREFLIGHT_PASS"
+
+      - name: Materialize exact successor release binding
         shell: pwsh
         run: |
-          $evidencePath = "release_evidence/CURRENT_SUCCESSOR_RELEASE_ALLOCATION.json"
-          if (!(Test-Path $evidencePath)) { throw "WIN-BUILD-ALLOCATION-001: Release Security allocation evidence is required" }
-          python src/verify_windows_release_security_allocation.py release_binding/LINE自動發訊息_Windows.pyw release_binding/BOUND_SOURCE_MANIFEST.json $evidencePath
+          if ($env:BUILD_GATE_OPEN -ne "true") { throw "WIN-SUCCESSOR-GATE-010: build gate is closed" }
+          $utf8 = [Text.UTF8Encoding]::new($false, $true)
+          $source = $utf8.GetString([IO.File]::ReadAllBytes($env:SOURCE_PATH))
+          $releasePattern = 'RELEASE_ID = "DA-LINE-WINDOWS-[0-9]{8}-[0-9]+"'
+          $versionPattern = 'APP_VERSION = "[0-9]+\.[0-9]+\.[0-9]+"'
+          if ([regex]::Matches($source, $releasePattern).Count -ne 1 -or [regex]::Matches($source, $versionPattern).Count -ne 1) { throw "WIN-SUCCESSOR-BIND-011: source identity markers are not unique" }
+          $bound = [regex]::Replace($source, $releasePattern, "RELEASE_ID = `"$env:RELEASE_ID`"")
+          $bound = [regex]::Replace($bound, $versionPattern, "APP_VERSION = `"$env:RELEASE_VERSION`"")
+          $boundDir = Split-Path -Parent $env:BOUND_SOURCE_PATH
+          $manifestDir = Split-Path -Parent $env:BINDING_MANIFEST_PATH
+          $helperDir = Split-Path -Parent $env:BINDING_HELPER_PATH
+          foreach ($dir in @($boundDir, $manifestDir, $helperDir)) { if ($dir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null } }
+          [IO.File]::WriteAllText($env:BOUND_SOURCE_PATH, $bound.Replace("`r`n", "`n"), $utf8)
+          Copy-Item -LiteralPath $env:HELPER_PATH -Destination $env:BINDING_HELPER_PATH
+          $boundSha = (Get-FileHash -LiteralPath $env:BOUND_SOURCE_PATH -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($boundSha -ne $env:EXPECTED_BOUND_SOURCE_SHA256) { throw "WIN-SUCCESSOR-BIND-012: materialized source hash mismatch" }
+          $binding = [ordered]@{
+            schema_version = "line_windows_bound_source_v2"
+            status = "LOCAL_BINDING_PREPARED_NOT_SERVER_REGISTERED"
+            release_id = $env:RELEASE_ID
+            version = $env:RELEASE_VERSION
+            build = $env:RELEASE_BUILD
+            app_id = "line_automation_windows"
+            client_id = "deal_alliance_line_windows"
+            product_id = "line_automation"
+            platform = "windows"
+            callback = "dealalliance-line-windows://handoff"
+            pkce = "S256"
+            source_sha256 = $env:SOURCE_SHA256
+            bound_source_sha256 = $boundSha
+            real_data = $false
+            external_actions = @()
+          }
+          [IO.File]::WriteAllText($env:BINDING_MANIFEST_PATH, (($binding | ConvertTo-Json -Depth 6) + "`n"), $utf8)
 
       - name: Install dependencies
         shell: pwsh
         run: |
+          if ($env:BUILD_GATE_OPEN -ne "true") { throw "WIN-SUCCESSOR-GATE-010: build gate is closed" }
           python -m pip install --upgrade pip
           python -m pip install pyautogui pyperclip Pillow pyinstaller
 
       - name: Pre-build safety checks
         shell: pwsh
         run: |
-          python -m py_compile release_binding/LINE自動發訊息_Windows.pyw release_binding/gsheet_helper.py
-          python src/verify_windows_no_send_preflight.py release_binding/LINE自動發訊息_Windows.pyw release_binding/gsheet_helper.py
-          $env:LINE_WINDOWS_SUCCESSOR_BOUND_SOURCE = (Resolve-Path "release_binding/LINE自動發訊息_Windows.pyw").Path
-          $env:LINE_WINDOWS_SUCCESSOR_DRY_RUN_REPORT = (Join-Path (Get-Location) "WINDOWS_SUCCESSOR_FUNCTIONAL_DRY_RUN.json")
-          python src/test_line_windows_successor_functional_dry_run.py
+          if ($env:BUILD_GATE_OPEN -ne "true") { throw "WIN-SUCCESSOR-GATE-010: build gate is closed" }
+          python -m py_compile $env:BOUND_SOURCE_PATH $env:BINDING_HELPER_PATH
+          python src/verify_windows_no_send_preflight.py $env:BOUND_SOURCE_PATH $env:BINDING_HELPER_PATH
           python src/verify_windows_functional_no_send_preflight.py Windows/source/line_auto_sender_windows_functional_test.pyw src/functional_test_logger.py
-          $source = Get-Content -Raw "release_binding/LINE自動發訊息_Windows.pyw"
-          $helper = Get-Content -Raw "src/gsheet_helper.py"
+          python $env:FUNCTIONAL_TEST_PATH
+          $source = Get-Content -Raw -Encoding utf8 $env:BOUND_SOURCE_PATH
+          $helper = Get-Content -Raw -Encoding utf8 $env:BINDING_HELPER_PATH
           foreach ($token in @("ORIKAN_TX_2024", "script.google.com/macros", "verify_license", "PERMANENT-*", "SUB-*")) {
             if ($source.Contains($token) -or $helper.Contains($token)) { throw "Forbidden legacy or offline-auth token: $token" }
           }
           if (Test-Path "src/gsheet_config.json") { throw "gsheet_config.json must not be packaged" }
           if (Test-Path "src/license.json") { throw "license.json must not be packaged" }
+          $functionalReport = [ordered]@{
+            status = "PASS"
+            release_id = $env:RELEASE_ID
+            version = $env:RELEASE_VERSION
+            build = $env:RELEASE_BUILD
+            source_sha256 = $env:SOURCE_SHA256
+            bound_source_sha256 = $env:EXPECTED_BOUND_SOURCE_SHA256
+            fixture_only = $true
+            real_data = $false
+            line_started = $false
+            messages_sent = 0
+            send_attempts = 0
+            network_requests = 0
+            external_actions = @()
+          }
+          $functionalDir = Split-Path -Parent $env:FUNCTIONAL_REPORT_PATH
+          if ($functionalDir) { New-Item -ItemType Directory -Force -Path $functionalDir | Out-Null }
+          [IO.File]::WriteAllText($env:FUNCTIONAL_REPORT_PATH, (($functionalReport | ConvertTo-Json -Depth 5) + "`n"), [Text.UTF8Encoding]::new($false))
 
-      - name: Build EXE
+      - name: Build GUI EXE and console self-test sibling
         shell: pwsh
         run: |
-          cd release_binding
-          pyinstaller --onefile --windowed --name "LINE_AutoSender" --clean --noconfirm "LINE自動發訊息_Windows.pyw"
-          Copy-Item "LINE自動發訊息_Windows.pyw" "LINE自動發訊息_Windows_self_test.py"
-          if ((Get-FileHash "LINE自動發訊息_Windows.pyw" -Algorithm SHA256).Hash -ne (Get-FileHash "LINE自動發訊息_Windows_self_test.py" -Algorithm SHA256).Hash) { throw "Self-test source copy does not match candidate source" }
-          pyinstaller --onefile --console --name "LINE_AutoSenderSelfTest" --clean --noconfirm "LINE自動發訊息_Windows_self_test.py"
-          Remove-Item "LINE自動發訊息_Windows_self_test.py" -Force
+          if ($env:BUILD_GATE_OPEN -ne "true") { throw "WIN-SUCCESSOR-GATE-010: build gate is closed" }
+          $guiName = [IO.Path]::GetFileNameWithoutExtension($env:GUI_EXE_PATH)
+          $selfTestName = [IO.Path]::GetFileNameWithoutExtension($env:SELF_TEST_EXE_PATH)
+          $distDir = Split-Path -Parent $env:GUI_EXE_PATH
+          $selfTestSource = $env:SELF_TEST_SOURCE_PATH
+          pyinstaller --onefile --windowed --name $guiName --clean --noconfirm --distpath $distDir --workpath $env:PYINSTALLER_WORK_PATH --specpath $env:PYINSTALLER_SPEC_PATH $env:BOUND_SOURCE_PATH
+          Copy-Item -LiteralPath $env:BOUND_SOURCE_PATH -Destination $selfTestSource
+          if ((Get-FileHash $env:BOUND_SOURCE_PATH -Algorithm SHA256).Hash -ne (Get-FileHash $selfTestSource -Algorithm SHA256).Hash) { throw "Self-test source copy does not match candidate source" }
+          pyinstaller --onefile --console --name $selfTestName --clean --noconfirm --distpath (Split-Path -Parent $env:SELF_TEST_EXE_PATH) --workpath $env:PYINSTALLER_WORK_PATH --specpath $env:PYINSTALLER_SPEC_PATH $selfTestSource
+          Remove-Item -LiteralPath $selfTestSource -Force
 
-      - name: EXE self-test (no send)
+      - name: EXE self-test no-send
         shell: pwsh
         run: |
-          $env:LINE_SELF_TEST_REPORT = (Join-Path (Get-Location) "windows_exe_no_send_self_test.json")
-          & "release_binding/dist/LINE_AutoSenderSelfTest.exe" "--self-test-no-send"
+          if ($env:BUILD_GATE_OPEN -ne "true") { throw "WIN-SUCCESSOR-GATE-010: build gate is closed" }
+          $selfTestReportDir = Split-Path -Parent $env:SELF_TEST_REPORT_PATH
+          if ($selfTestReportDir) { New-Item -ItemType Directory -Force -Path $selfTestReportDir | Out-Null }
+          $env:LINE_SELF_TEST_REPORT = $env:SELF_TEST_REPORT_PATH
+          & $env:SELF_TEST_EXE_PATH "--self-test-no-send"
           $selfTestExitCode = $LASTEXITCODE
-          if (Test-Path $env:LINE_SELF_TEST_REPORT) { Get-Content -Raw $env:LINE_SELF_TEST_REPORT }
-          if ($selfTestExitCode -ne 0) { throw "Windows EXE no-send self-test failed" }
-          $report = Get-Content -Raw $env:LINE_SELF_TEST_REPORT | ConvertFrom-Json
-          if ($report.overall -ne "PASS" -or $report.real_data -ne $false -or $report.line_ui_opened -ne $false -or $report.keyboard_or_clipboard_used -ne $false -or @($report.external_actions).Count -ne 0) {
+          if ($selfTestExitCode -ne 0 -or !(Test-Path $env:SELF_TEST_REPORT_PATH)) { throw "Windows EXE no-send self-test failed" }
+          $report = Get-Content -Raw -Encoding utf8 $env:SELF_TEST_REPORT_PATH | ConvertFrom-Json
+          if ($report.overall -ne "PASS" -or $report.real_data -ne $false -or $report.line_ui_opened -ne $false -or $report.keyboard_or_clipboard_used -ne $false -or [int]$report.messages_sent -ne 0 -or [int]$report.send_attempts -ne 0 -or @($report.external_actions).Count -ne 0) {
             throw "Windows EXE self-test report violates no-send boundary"
           }
-          Remove-Item "release_binding/dist/LINE_AutoSenderSelfTest.exe" -Force
+          Remove-Item -LiteralPath $env:SELF_TEST_EXE_PATH -Force
 
-      - name: Create private candidate archive
+      - name: Create exact private unsigned candidate
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "private_candidate/LINE自動發訊息_Windows候選版" | Out-Null
-          Copy-Item "release_binding/dist/LINE_AutoSender.exe" "private_candidate/LINE自動發訊息_Windows候選版/LINE_AutoSender.exe"
-          if (Test-Path "Windows使用說明書.pdf") {
-            Copy-Item "Windows使用說明書.pdf" "private_candidate/LINE自動發訊息_Windows候選版/Windows使用說明書.pdf"
-          } else {
-            Write-Host "Windows使用說明書.pdf not present; keeping the private candidate artifact source-only."
+          if ($env:BUILD_GATE_OPEN -ne "true") { throw "WIN-SUCCESSOR-GATE-010: build gate is closed" }
+          New-Item -ItemType Directory -Path $env:CANDIDATE_DIRECTORY | Out-Null
+          Copy-Item -LiteralPath $env:GUI_EXE_PATH -Destination $env:CANDIDATE_EXE_PATH
+          foreach ($target in @($env:PACKAGE_PATH, $env:FINAL_EVIDENCE_PATH)) {
+            $parent = Split-Path -Parent $target
+            if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
           }
           python src/create_windows_private_candidate_evidence.py `
             --release-id $env:RELEASE_ID `
-            --allocation "release_evidence/CURRENT_SUCCESSOR_RELEASE_ALLOCATION.json" `
-            --binding-manifest "release_binding/BOUND_SOURCE_MANIFEST.json" `
-            --bound-source "release_binding/LINE自動發訊息_Windows.pyw" `
-            --helper "release_binding/gsheet_helper.py" `
-            --exe "private_candidate/LINE自動發訊息_Windows候選版/LINE_AutoSender.exe" `
-            --self-test-report "windows_exe_no_send_self_test.json" `
-            --sbom-output "private_candidate/LINE自動發訊息_Windows候選版/SBOM.cdx.json" `
-            --manifest-output "private_candidate/LINE自動發訊息_Windows候選版/CANDIDATE_MANIFEST.json"
-          Compress-Archive -Path "private_candidate/LINE自動發訊息_Windows候選版" -DestinationPath "LINE自動發訊息_Windows候選版.zip" -Force
+            --allocation $env:ALLOCATION_PATH `
+            --binding-manifest $env:BINDING_MANIFEST_PATH `
+            --bound-source $env:BOUND_SOURCE_PATH `
+            --helper $env:BINDING_HELPER_PATH `
+            --exe $env:CANDIDATE_EXE_PATH `
+            --self-test-report $env:SELF_TEST_REPORT_PATH `
+            --sbom-output $env:CANDIDATE_SBOM_PATH `
+            --manifest-output $env:CANDIDATE_MANIFEST_PATH
+          $utf8 = [Text.UTF8Encoding]::new($false)
+          $manifest = Get-Content -Raw -Encoding utf8 $env:CANDIDATE_MANIFEST_PATH | ConvertFrom-Json
+          $manifest | Add-Member -NotePropertyName build -NotePropertyValue $env:RELEASE_BUILD -Force
+          [IO.File]::WriteAllText($env:CANDIDATE_MANIFEST_PATH, (($manifest | ConvertTo-Json -Depth 20) + "`n"), $utf8)
+          $sbom = Get-Content -Raw -Encoding utf8 $env:CANDIDATE_SBOM_PATH | ConvertFrom-Json
+          if ($null -eq $sbom.metadata.component.properties) { $sbom.metadata.component | Add-Member -NotePropertyName properties -NotePropertyValue @() -Force }
+          $sbom.metadata.component.properties = @($sbom.metadata.component.properties) + @(@{ name = "deal_alliance.build"; value = $env:RELEASE_BUILD })
+          [IO.File]::WriteAllText($env:CANDIDATE_SBOM_PATH, (($sbom | ConvertTo-Json -Depth 20) + "`n"), $utf8)
+          Compress-Archive -Path $env:CANDIDATE_DIRECTORY -DestinationPath $env:PACKAGE_PATH
           python src/finalize_windows_private_candidate_evidence.py `
-            --manifest "private_candidate/LINE自動發訊息_Windows候選版/CANDIDATE_MANIFEST.json" `
-            --sbom "private_candidate/LINE自動發訊息_Windows候選版/SBOM.cdx.json" `
-            --exe "private_candidate/LINE自動發訊息_Windows候選版/LINE_AutoSender.exe" `
-            --package "LINE自動發訊息_Windows候選版.zip" `
-            --output "WINDOWS_PRIVATE_CANDIDATE_EVIDENCE.json"
+            --manifest $env:CANDIDATE_MANIFEST_PATH `
+            --sbom $env:CANDIDATE_SBOM_PATH `
+            --exe $env:CANDIDATE_EXE_PATH `
+            --package $env:PACKAGE_PATH `
+            --output $env:FINAL_EVIDENCE_PATH
 
-      - name: Verify package
+      - name: Verify exact package and ZIP allowlist
         shell: pwsh
         run: |
-          if (!(Test-Path "release_binding/dist/LINE_AutoSender.exe")) { throw "EXE not found" }
-          if (!(Test-Path "LINE自動發訊息_Windows候選版.zip")) { throw "Candidate archive not found" }
-          if (!(Test-Path "private_candidate/LINE自動發訊息_Windows候選版/CANDIDATE_MANIFEST.json")) { throw "Candidate manifest not found" }
-          if (!(Test-Path "private_candidate/LINE自動發訊息_Windows候選版/SBOM.cdx.json")) { throw "Candidate SBOM not found" }
-          if (!(Test-Path "WINDOWS_PRIVATE_CANDIDATE_EVIDENCE.json")) { throw "Candidate outer evidence not found" }
-          $manifest = Get-Content -Raw "private_candidate/LINE自動發訊息_Windows候選版/CANDIDATE_MANIFEST.json" | ConvertFrom-Json
-          if ($manifest.status -ne "PRIVATE_UNSIGNED_CANDIDATE_NOT_FOR_DELIVERY") { throw "Candidate status is not private" }
-          if ($manifest.app_id -ne "line_automation_windows" -or $manifest.client_id -ne "deal_alliance_line_windows" -or $manifest.product_id -ne "line_automation" -or $manifest.platform -ne "windows" -or $manifest.callback -ne "dealalliance-line-windows://handoff" -or $manifest.release_id -ne "DA-LINE-WINDOWS-20260802-8001" -or $manifest.version -ne "8.0.1" -or $manifest.pkce -ne "S256" -or $manifest.backend_contract_sha256 -ne "93092b1d3dc2d8e26842c11e9d7b8b55374bc90e8ba74cdba96d28ffe2633c5d") { throw "Candidate OAuth/live-dispatch binding is incomplete" }
-          if ($manifest.gates.formal_registry_allowed -ne $false -or $manifest.gates.customer_delivery_allowed -ne $false -or $manifest.gates.protected_download_allowed -ne $false) { throw "Candidate delivery gate is not closed" }
-          $candidate = "private_candidate/LINE自動發訊息_Windows候選版"
-          $candidateRoot = (Resolve-Path $candidate).Path
-          $allowedNames = @("LINE_AutoSender.exe", "CANDIDATE_MANIFEST.json", "SBOM.cdx.json", "Windows使用說明書.pdf")
-          $candidateNames = Get-ChildItem -File -Recurse $candidateRoot | ForEach-Object { $_.FullName.Substring($candidateRoot.Length + 1).Replace('\', '/') }
-          foreach ($name in $candidateNames) {
-            if ($name -notin $allowedNames) { throw "Unexpected candidate package file: $name" }
+          if ($env:BUILD_GATE_OPEN -ne "true") { throw "WIN-SUCCESSOR-GATE-010: build gate is closed" }
+          foreach ($path in @($env:CANDIDATE_EXE_PATH, $env:CANDIDATE_MANIFEST_PATH, $env:CANDIDATE_SBOM_PATH, $env:PACKAGE_PATH, $env:FINAL_EVIDENCE_PATH)) {
+            if (!(Test-Path -LiteralPath $path -PathType Leaf)) { throw "WIN-SUCCESSOR-PACKAGE-013: required output missing" }
           }
-          if ("LINE_AutoSender.exe" -notin $candidateNames -or "CANDIDATE_MANIFEST.json" -notin $candidateNames -or "SBOM.cdx.json" -notin $candidateNames) { throw "Candidate package is incomplete" }
-          $exeHash = (Get-FileHash "$candidate/LINE_AutoSender.exe" -Algorithm SHA256).Hash.ToLower()
-          if ($manifest.hashes.binary_sha256 -ne $exeHash) { throw "EXE hash does not match manifest" }
-          $signature = Get-AuthenticodeSignature "$candidate/LINE_AutoSender.exe"
-          if ($signature.Status -ne "NotSigned") { throw "Private candidate must not claim formal Authenticode signing: $($signature.Status)" }
-          Expand-Archive -Path "LINE自動發訊息_Windows候選版.zip" -DestinationPath "package_probe" -Force
-          $probeRoot = "package_probe/LINE自動發訊息_Windows候選版"
+          $manifest = Get-Content -Raw -Encoding utf8 $env:CANDIDATE_MANIFEST_PATH | ConvertFrom-Json
+          if ($manifest.status -ne "PRIVATE_UNSIGNED_CANDIDATE_NOT_FOR_DELIVERY" -or $manifest.release_id -ne $env:RELEASE_ID -or $manifest.version -ne $env:RELEASE_VERSION -or [string]$manifest.build -ne $env:RELEASE_BUILD -or $manifest.backend_contract_sha256 -ne $env:BACKEND_CONTRACT_SHA256) { throw "Candidate identity/contract mismatch" }
+          if ($manifest.gates.formal_registry_allowed -ne $false -or $manifest.gates.customer_delivery_allowed -ne $false -or $manifest.gates.protected_download_allowed -ne $false) { throw "Candidate delivery gate is not closed" }
+          $candidateRoot = (Resolve-Path $env:CANDIDATE_DIRECTORY).Path
+          $candidateNames = Get-ChildItem -File -Recurse $candidateRoot | ForEach-Object { $_.FullName.Substring($candidateRoot.Length + 1).Replace('\', '/') }
+          $allowedNames = @($env:ZIP_ALLOWLIST_JSON | ConvertFrom-Json)
+          foreach ($name in $candidateNames) { if ($name -notin $allowedNames) { throw "Unexpected candidate package file: $name" } }
+          foreach ($name in $allowedNames) { if ($name -notin $candidateNames) { throw "Required allowlisted package file missing: $name" } }
+          $signature = Get-AuthenticodeSignature $env:CANDIDATE_EXE_PATH
+          if ($signature.Status -ne "NotSigned") { throw "Private candidate must remain unsigned: $($signature.Status)" }
+          $probe = Join-Path $env:RUNNER_TEMP "line-windows-successor-package-probe"
+          Expand-Archive -LiteralPath $env:PACKAGE_PATH -DestinationPath $probe
+          $probeRoot = Join-Path $probe ([IO.Path]::GetFileName($env:CANDIDATE_DIRECTORY))
           $probeNames = Get-ChildItem -File -Recurse $probeRoot | ForEach-Object { $_.FullName.Substring((Resolve-Path $probeRoot).Path.Length + 1).Replace('\', '/') }
-          if ((Compare-Object $candidateNames $probeNames)) { throw "ZIP content differs from candidate directory" }
-          $probeManifest = Get-Content -Raw "$probeRoot/CANDIDATE_MANIFEST.json" | ConvertFrom-Json
-          if ($probeManifest.status -ne "PRIVATE_UNSIGNED_CANDIDATE_NOT_FOR_DELIVERY" -or $probeManifest.gates.formal_registry_allowed -ne $false -or $probeManifest.gates.customer_delivery_allowed -ne $false -or $probeManifest.gates.protected_download_allowed -ne $false) { throw "Expanded candidate manifest opens the delivery gate" }
-          $probeExeHash = (Get-FileHash "$probeRoot/LINE_AutoSender.exe" -Algorithm SHA256).Hash.ToLower()
-          if ($probeManifest.hashes.binary_sha256 -ne $probeExeHash -or $manifest.hashes.binary_sha256 -ne $probeExeHash) { throw "Expanded candidate EXE hash does not match manifest" }
+          if (Compare-Object $candidateNames $probeNames) { throw "ZIP content differs from candidate directory" }
           python src/verify_windows_private_candidate_artifacts.py `
-            --manifest "$candidate/CANDIDATE_MANIFEST.json" `
-            --sbom "$candidate/SBOM.cdx.json" `
-            --exe "$candidate/LINE_AutoSender.exe" `
-            --package "LINE自動發訊息_Windows候選版.zip" `
-            --final-evidence "WINDOWS_PRIVATE_CANDIDATE_EVIDENCE.json"
-          Get-ChildItem $candidate
+            --manifest $env:CANDIDATE_MANIFEST_PATH `
+            --sbom $env:CANDIDATE_SBOM_PATH `
+            --exe $env:CANDIDATE_EXE_PATH `
+            --package $env:PACKAGE_PATH `
+            --final-evidence $env:FINAL_EVIDENCE_PATH `
+            --release-id $env:RELEASE_ID `
+            --version $env:RELEASE_VERSION `
+            --build $env:RELEASE_BUILD `
+            --bound-source-sha256 $env:EXPECTED_BOUND_SOURCE_SHA256 `
+            --backend-contract-sha256 $env:BACKEND_CONTRACT_SHA256
 
-      - name: Upload private candidate archive
+      - name: Upload exact private unsigned candidate
         uses: actions/upload-artifact@v4
         with:
-          name: LINE-WINDOWS-8001-PRIVATE-UNSIGNED
+          name: "${{ steps.authority.outputs.artifact_name }}"
           path: |
-            LINE自動發訊息_Windows候選版.zip
-            WINDOWS_PRIVATE_CANDIDATE_EVIDENCE.json
-            WINDOWS_SUCCESSOR_FUNCTIONAL_DRY_RUN.json
+            ${{ steps.authority.outputs.package_path }}
+            ${{ steps.authority.outputs.final_evidence_path }}
+            ${{ steps.authority.outputs.functional_report_path }}
+            ${{ steps.authority.outputs.self_test_report_path }}

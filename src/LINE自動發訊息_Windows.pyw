@@ -319,6 +319,224 @@ def wait_for_title_return(chat_title, timeout=2):
     return False
 
 
+def _sha256_text(value):
+    return hashlib.sha256(str(value).encode("utf-8", "replace")).hexdigest()
+
+
+def get_foreground_line_window_context():
+    """Return names-only Win32 context needed for in-memory UI fingerprints."""
+    try:
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        hwnd = user32.GetForegroundWindow()
+        if not hwnd:
+            return {}
+
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+
+        class_buf = ctypes.create_unicode_buffer(256)
+        user32.GetClassNameW(hwnd, class_buf, len(class_buf))
+
+        rect = wintypes.RECT()
+        if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+            return {}
+
+        width = int(rect.right - rect.left)
+        height = int(rect.bottom - rect.top)
+        if not pid.value or width < 320 or height < 240:
+            return {}
+
+        return {
+            "pid": int(pid.value),
+            "class_name": class_buf.value.strip(),
+            "left": int(rect.left),
+            "top": int(rect.top),
+            "width": width,
+            "height": height,
+        }
+    except Exception:
+        return {}
+
+
+def capture_line_visual_digest(region_kind):
+    """Hash a normalized LINE UI region in memory; never persist screenshots."""
+    context = get_foreground_line_window_context()
+    if not context:
+        return "", {}
+
+    left = context["left"]
+    top = context["top"]
+    width = context["width"]
+    height = context["height"]
+
+    if region_kind == "chat_header":
+        region_left = left + max(220, int(width * 0.30))
+        region_top = top + 32
+        region_width = max(96, width - (region_left - left))
+        region_height = min(120, max(72, int(height * 0.14)))
+        normalized_size = (64, 16)
+    elif region_kind == "friend_list":
+        region_left = left
+        region_top = top + 64
+        region_width = min(width, max(240, int(width * 0.36)))
+        region_height = max(120, height - 64)
+        normalized_size = (32, 64)
+    else:
+        return "", context
+
+    try:
+        image = pyautogui.screenshot(
+            region=(region_left, region_top, region_width, region_height)
+        )
+        gray = image.convert("L")
+        resampling = getattr(Image, "Resampling", Image)
+        gray = gray.resize(normalized_size, getattr(resampling, "BILINEAR", 2))
+        quantized = bytes((int(pixel) // 16) * 16 for pixel in gray.getdata())
+        return hashlib.sha256(quantized).hexdigest(), context
+    except Exception:
+        return "", context
+
+
+def build_chat_instance_observation(chat_title, header_digest, window_context):
+    """Validate a chat surface without treating dynamic title/header as identity."""
+    normalized_title = re.sub(r"\s+", " ", str(chat_title or "")).strip().casefold()
+    class_name = str((window_context or {}).get("class_name", "")).strip()
+    pid = int((window_context or {}).get("pid", 0) or 0)
+    if not normalized_title or not class_name or not pid:
+        return {}
+    if not re.fullmatch(r"[0-9a-f]{64}", str(header_digest or "")):
+        return {}
+
+    process_key = _sha256_text(f"pid={pid}|class={class_name}")
+    title_hash = _sha256_text(normalized_title)
+    surface_fingerprint = _sha256_text(
+        f"process={process_key}|title={title_hash}|header={header_digest}"
+    )
+    return {
+        "fingerprint": surface_fingerprint,
+        "process_key": process_key,
+        "title_hash": title_hash,
+        "header_digest": header_digest,
+    }
+
+
+def capture_chat_instance_observation():
+    header_digest, context = capture_line_visual_digest("chat_header")
+    return build_chat_instance_observation(
+        get_foreground_window_title(), header_digest, context
+    )
+
+
+def bind_chat_observation_to_selection(observation, selection_fingerprint):
+    """Use process/class plus selected friend-list instance as durable identity."""
+    if not observation or not selection_fingerprint:
+        return {}
+    base_fingerprint = str(observation.get("fingerprint", ""))
+    if not base_fingerprint:
+        return {}
+    bound = dict(observation)
+    bound["chat_surface_fingerprint"] = base_fingerprint
+    bound["selection_fingerprint"] = str(selection_fingerprint)
+    # The title and normalized header image are entry/readiness evidence only.
+    # They may change while the same chat remains selected, so the per-batch
+    # duplicate identity must exclude them. This mirrors Mac 8012 semantics.
+    bound["fingerprint"] = _sha256_text(
+        f"process={observation.get('process_key', '')}|selection={selection_fingerprint}"
+    )
+    return bound
+
+
+def capture_friend_list_selection_fingerprint():
+    visual_digest, context = capture_line_visual_digest("friend_list")
+    class_name = str((context or {}).get("class_name", "")).strip()
+    pid = int((context or {}).get("pid", 0) or 0)
+    if not visual_digest or not class_name or not pid:
+        return ""
+    return _sha256_text(
+        f"pid={pid}|class={class_name}|friend_list={visual_digest}"
+    )
+
+
+def _wait_for_stable_capture(capture_cb, timeout=2.0, previous=""):
+    """Require two identical bounded reads; ambiguity/lag returns empty."""
+    start = time.time()
+    last_key = ""
+    stable_reads = 0
+    last_value = None
+    while time.time() - start < timeout:
+        if STOP_FLAG:
+            return None
+        value = capture_cb()
+        key = value.get("fingerprint", "") if isinstance(value, dict) else str(value or "")
+        if not key or (previous and key == previous):
+            last_key = ""
+            stable_reads = 0
+            last_value = None
+        elif key == last_key:
+            stable_reads += 1
+            last_value = value
+            if stable_reads >= 2:
+                return last_value
+        else:
+            last_key = key
+            stable_reads = 1
+            last_value = value
+        time.sleep(0.1)
+    return None
+
+
+def wait_for_stable_chat_instance(timeout=2.0):
+    return _wait_for_stable_capture(capture_chat_instance_observation, timeout=timeout)
+
+
+def wait_for_stable_friend_list_selection(timeout=2.0):
+    return _wait_for_stable_capture(
+        capture_friend_list_selection_fingerprint, timeout=timeout
+    )
+
+
+def wait_for_friend_list_selection_transition(previous_fingerprint, timeout=2.0):
+    if not previous_fingerprint:
+        return None
+    return _wait_for_stable_capture(
+        capture_friend_list_selection_fingerprint,
+        timeout=timeout,
+        previous=previous_fingerprint,
+    )
+
+
+class ChatInstanceGuard:
+    """In-memory, per-batch duplicate guard; stores hashes only."""
+
+    def __init__(self):
+        self._visited = set()
+        self._process_key = ""
+
+    def classify(self, observation, transition_proven):
+        if not transition_proven or not observation:
+            return "ambiguous"
+        fingerprint = str(observation.get("fingerprint", ""))
+        process_key = str(observation.get("process_key", ""))
+        if not fingerprint or not process_key:
+            return "ambiguous"
+        if self._process_key and process_key != self._process_key:
+            return "ambiguous"
+        if fingerprint in self._visited:
+            return "duplicate"
+        return "allow"
+
+    def mark_sent(self, observation):
+        fingerprint = str((observation or {}).get("fingerprint", ""))
+        process_key = str((observation or {}).get("process_key", ""))
+        if not fingerprint or not process_key:
+            raise ValueError("chat observation is incomplete")
+        if not self._process_key:
+            self._process_key = process_key
+        self._visited.add(fingerprint)
+
+
 # ==========================================
 # 授權管理（線上驗證；未驗證不得進入發送流程）
 # ==========================================
@@ -1044,14 +1262,14 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                   gsheet_logger=None, add_name=False, error_cb=None,
                   authorization_cb=None):
     """
-    v2.0：加入視窗標題偵測 + 逐筆好友紀錄 + 進度百分比
+    v2.1：聊天室實例指紋 + 好友列表轉場證明 + 逐筆進度
     """
     global STOP_FLAG
     STOP_FLAG = False
     sent = 0
-    last_chat_title_sent = ""
-    last_send_fingerprint = ""
-    planned_send_fingerprint = build_send_fingerprint(send_type, msg_text, img_path)
+    chat_guard = ChatInstanceGuard()
+    next_selection_fingerprint = ""
+    selection_transition_proven = True  # 第一位由使用者在預覽前手動選定
 
     type_names = {'text': '純文字', 'image': '純圖片', 'both': '文字+圖片'}
     type_label = type_names.get(send_type, send_type)
@@ -1074,17 +1292,11 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             )
 
     original_clipboard = ""
+    original_clipboard_loaded = False
     try:
         # Direct CLI/import invocation without the production authorization
         # dependency is rejected before LINE, keyboard, or clipboard access.
         require_dispatch_authorization("batch_start")
-        # Only read the clipboard after a one-time backend capability was
-        # issued and consumed for this exact production tuple.
-        original_clipboard = ""
-        try:
-            original_clipboard = pyperclip.paste()
-        except Exception:
-            pass
         for i in range(2, 0, -1):
             if STOP_FLAG:
                 done_cb(sent, True); return
@@ -1100,8 +1312,6 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                 line_detail
             )
         time.sleep(0.3)
-        progress_cb("⌨️ 正在切換英文輸入法...", "")
-        require_english_input_method("before_send_loop")
 
         for i in range(1, count + 1):
             if STOP_FLAG:
@@ -1122,43 +1332,77 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                 )
             time.sleep(0.15)
 
-            old_title = (get_foreground_window_title() or "").strip()
-            if (
-                last_chat_title_sent
-                and old_title == last_chat_title_sent
-                and planned_send_fingerprint == last_send_fingerprint
+            current_selection_fingerprint = wait_for_stable_friend_list_selection(timeout=2.0)
+            if not current_selection_fingerprint:
+                raise_send_error(
+                    "WIN-TRANSITION-001",
+                    "無法確認目前選取的聊天室",
+                    "LINE 好友列表的選取狀態仍在變動或無法辨識，因此程式已在貼上與發送前停止。\n\n"
+                    "請確認 LINE 已回到好友列表且畫面不再移動，再重新建立預覽。",
+                    f"recipient_index={i}; selection_readback=ambiguous"
+                )
+            if i > 1 and (
+                not selection_transition_proven
+                or current_selection_fingerprint != next_selection_fingerprint
             ):
                 raise_send_error(
-                    "WIN-DUP-001",
-                    "恭喜你已發完全部，或發到重覆的人。",
-                    "LINE 沒有切到新的好友，程式已安全停止，避免重複發給上一位。\n\n"
-                    "若確認還有下一位，請先回到 LINE 好友列表、手動選好下一位，再重新建立預覽。",
-                    f"old_title={old_title!r}, last_chat_title_sent={last_chat_title_sent!r}, "
-                    f"fingerprint={planned_send_fingerprint}"
+                    "WIN-TRANSITION-002",
+                    "無法證明已切換到下一個聊天室",
+                    "程式沒有取得『回到好友列表並移到下一列』的穩定證據，因此已在貼上與發送前停止。\n\n"
+                    "這不是同名判斷；請重新建立預覽後再開始。程式不會自動重試。",
+                    f"recipient_index={i}; transition_proven={selection_transition_proven}; "
+                    f"selection_match={current_selection_fingerprint == next_selection_fingerprint}"
                 )
+
+            old_title = (get_foreground_window_title() or "").strip()
 
             # 按 Enter 進入聊天室
             pyautogui.press('enter')
             time.sleep(0.3)
 
-            # ★ 偵測視窗標題變化（取得好友名稱）
-            friend_name_raw = ""
+            # 視窗標題只供顯示；同名不再作為聊天室身分或停止條件。
             new_title = wait_for_title_change(old_title, timeout=3)
-            if new_title:
-                friend_name_raw = new_title
-            else:
+            friend_name_raw = new_title or (get_foreground_window_title() or "").strip()
+            chat_observation = bind_chat_observation_to_selection(
+                wait_for_stable_chat_instance(timeout=2.0),
+                current_selection_fingerprint,
+            )
+            decision = chat_guard.classify(
+                chat_observation,
+                transition_proven=(i == 1 or selection_transition_proven),
+            )
+            if decision == "ambiguous":
                 raise_send_error(
                     "WIN-LINE-003",
                     "沒有成功進入聊天室",
-                    "沒有成功進入聊天室，所以程式已停止，避免送錯人。\n\n"
+                    "程式無法取得穩定的聊天室實例指紋，所以已在貼上與發送前停止，避免送錯人。\n\n"
                     "請照這樣重新準備 LINE：\n"
                     "1. 打開 LINE 電腦版並登入。\n"
                     "2. 回到左側好友列表，不要停在搜尋框。\n"
                     "3. 用滑鼠點一下第一位要發送的好友，讓他呈現選取狀態。\n"
                     "4. 不要把 LINE 縮小或蓋住，再重新執行本程式。\n\n"
                     "如果你原本已經在聊天室，請先按 Esc 回到好友列表再開始。",
-                    f"old_title={old_title!r}, current_title={get_foreground_window_title()!r}"
+                    f"recipient_index={i}; chat_instance=ambiguous"
                 )
+            if decision == "duplicate":
+                raise_send_error(
+                    "WIN-DUP-001",
+                    "恭喜你已發完全部，或發到重覆的人。",
+                    "這個聊天室實例在本批次已經成功發送過一次，因此程式已在貼上與發送前停止。\n\n"
+                    "判斷依據是聊天室實例與好友列表轉場，不是顯示名稱；程式不會自動重試。",
+                    f"recipient_index={i}; chat_fingerprint="
+                    f"{chat_observation.get('fingerprint', '')}"
+                )
+
+            # Clipboard read is deferred until chat identity and transition
+            # proof both pass, so an ambiguous/lagged UI has zero clipboard or
+            # message side effects.
+            if not original_clipboard_loaded:
+                try:
+                    original_clipboard = pyperclip.paste()
+                except Exception:
+                    original_clipboard = ""
+                original_clipboard_loaded = True
 
             # ★ 智慧清理名字（去品牌、去姓氏、去標籤）
             friend_name = clean_friend_name(friend_name_raw)
@@ -1171,8 +1415,7 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             send_ok = True
             send_note = ""
 
-            # 防重複以可觀測的聊天室標題與內容指紋 fail-closed；若兩位好友只呈現相同標題，
-            # 程式無法證明是不同聊天室，寧可停止也不冒險繼續。
+            # 同名不同聊天室可繼續；同一聊天室於同一批次再次出現則已在上方停止。
 
             if send_type in ('text', 'both'):
                 require_english_input_method(f"before_text_paste:{i}")
@@ -1245,8 +1488,8 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
                         img_path
                     )
 
-            last_chat_title_sent = (friend_name_raw or "").strip()
-            last_send_fingerprint = planned_send_fingerprint
+            chat_guard.mark_sent(chat_observation)
+            sent = i
 
             # 離開聊天室
             require_dispatch_authorization(f"recipient_{i}_exit")
@@ -1265,11 +1508,31 @@ def send_messages(send_type, msg_text, img_path, count, progress_cb, done_cb,
             else:
                 time.sleep(0.8)
 
-            # 移到下一個好友
-            pyautogui.press('down')
-            time.sleep(0.25)
-
-            sent = i
+            # 只有確實還有下一位時才移動；最後一位完成後保持目前狀態，
+            # 避免多送一個無用途的 Down 或讓完成畫面看起來像漏發。
+            if i < count:
+                selection_before_move = wait_for_stable_friend_list_selection(timeout=2.0)
+                if not selection_before_move:
+                    raise_send_error(
+                        "WIN-TRANSITION-003",
+                        "好友列表狀態不穩定",
+                        "程式已完成目前這一位，但無法穩定讀取好友列表，因此不會嘗試下一位。",
+                        f"recipient_index={i}; before_move=ambiguous"
+                    )
+                pyautogui.press('down')
+                time.sleep(0.25)
+                next_selection_fingerprint = wait_for_friend_list_selection_transition(
+                    selection_before_move, timeout=2.0
+                ) or ""
+                selection_transition_proven = bool(next_selection_fingerprint)
+                if not selection_transition_proven:
+                    raise_send_error(
+                        "WIN-TRANSITION-004",
+                        "沒有確認好友列表已移到下一位",
+                        "目前這一位已完成，但按下下一列後沒有取得穩定轉場證據。程式已停止，"
+                        "不會進入下一個聊天室，也不會自動重試。",
+                        f"recipient_index={i}; after_move=ambiguous"
+                    )
 
             # ★ Google Sheet 逐筆紀錄 v2.0（含好友名稱）
             if gsheet_logger:

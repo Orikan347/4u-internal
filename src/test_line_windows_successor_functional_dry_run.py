@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Production-source functional dry-run for exact LINE Windows 8001 successor.
+"""Production-source functional dry-run for the allocated LINE Windows successor.
 
 This harness imports the release-bound production source without modifying it.
 Every OS/LINE/clipboard/browser action is replaced by an in-memory recorder.
@@ -31,10 +31,10 @@ SOURCE = Path(os.environ.get(
     "LINE_WINDOWS_SUCCESSOR_BOUND_SOURCE",
     str(BUILDER_ROOT / "release_binding/LINE自動發訊息_Windows.pyw"),
 ))
-EXPECTED_SOURCE_SHA256 = "d85a75dde5892a799fb9f0d952c2ffe2397fc689db5bd40dc3b39bdf92a2a907"
+EXPECTED_SOURCE_SHA256 = "b1d70ee04af4b2fd2a1ccda73600354dd048877f841c0629084314aa9fc6dbfc"
 EXPECTED_IDENTITY = {
-    "release_id": "DA-LINE-WINDOWS-20260802-8001",
-    "version": "8.0.1",
+    "release_id": "DA-LINE-WINDOWS-20260809-8002",
+    "version": "8.0.2",
     "app_id": "line_automation_windows",
     "client_id": "deal_alliance_line_windows",
     "product_id": "line_automation",
@@ -169,7 +169,7 @@ def load_production_module():
     }.items():
         sys.modules[name] = module
 
-    loader = importlib.machinery.SourceFileLoader("line_windows_8001_bound", str(SOURCE))
+    loader = importlib.machinery.SourceFileLoader("line_windows_successor_bound", str(SOURCE))
     spec = importlib.util.spec_from_loader(loader.name, loader)
     module = importlib.util.module_from_spec(spec)
     loader.exec_module(module)
@@ -186,7 +186,7 @@ class Value:
         return self.value
 
 
-class LineWindows8001FunctionalDryRun(unittest.TestCase):
+class LineWindowsSuccessorFunctionalDryRun(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.module = load_production_module()
@@ -505,16 +505,57 @@ class LineWindows8001FunctionalDryRun(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertEqual(self.module._test_pyautogui.actions, [])
 
-    def configure_dispatcher_stubs(self, titles: list[str]) -> None:
+    def chat_observation(self, display_name: str, visual_marker: str, pid: int = 4242) -> dict:
+        return self.module.build_chat_instance_observation(
+            display_name,
+            hashlib.sha256(visual_marker.encode("utf-8")).hexdigest(),
+            {"pid": pid, "class_name": "LINEFixtureWindow"},
+        )
+
+    def configure_dispatcher_stubs(
+        self,
+        chat_observations: list[dict],
+        *,
+        titles: list[str] | None = None,
+        selection_reads: list[str | None] | None = None,
+        transition_reads: list[str | None] | None = None,
+    ) -> None:
+        count = len(chat_observations)
+        titles = titles or ["受控測試對象"] * count
+        if selection_reads is None:
+            selection_reads = []
+            for index in range(count):
+                selection_reads.extend([
+                    f"selection-{index + 1}",
+                    f"returned-list-{index + 1}",
+                ])
+        if transition_reads is None:
+            transition_reads = [f"selection-{index + 2}" for index in range(max(0, count - 1))]
+
         title_iter = iter(titles)
+        chat_iter = iter(chat_observations)
+        selection_iter = iter(selection_reads)
+        transition_iter = iter(transition_reads)
+        self.message_side_effects = []
         self.module.time.sleep = lambda _seconds: None
         self.module.bring_line_to_front = lambda: (True, "fixture")
         self.module.require_english_input_method = lambda _stage: None
-        self.module.get_foreground_window_title = lambda: next(title_iter, titles[-1])
-        self.module.wait_for_title_change = lambda _old, timeout=3: "受控測試對象"
+        self.module.get_foreground_window_title = lambda: "LINE 好友列表"
+        self.module.wait_for_title_change = lambda _old, timeout=3: next(title_iter, titles[-1])
         self.module.wait_for_title_return = lambda _title, timeout=3: True
-        self.module.set_clipboard_text_verified = lambda _text: True
-        self.module.paste_and_verify_line_input = lambda _text: (True, "fixture")
+        self.module.wait_for_stable_chat_instance = lambda timeout=2.0: next(chat_iter, None)
+        self.module.wait_for_stable_friend_list_selection = (
+            lambda timeout=2.0: next(selection_iter, None)
+        )
+        self.module.wait_for_friend_list_selection_transition = (
+            lambda _previous, timeout=2.0: next(transition_iter, None)
+        )
+        self.module.set_clipboard_text_verified = lambda _text: (
+            self.message_side_effects.append("clipboard_write") or True
+        )
+        self.module.paste_and_verify_line_input = lambda _text: (
+            self.message_side_effects.append("line_paste") or (True, "fixture")
+        )
 
     def allow_dispatch(self, stage: str) -> bool:
         self.authorization_calls += 1
@@ -524,7 +565,9 @@ class LineWindows8001FunctionalDryRun(unittest.TestCase):
     def test_10_one_recipient_dispatcher_dry_run(self) -> None:
         original_sleep = self.module.time.sleep
         try:
-            self.configure_dispatcher_stubs(["LINE 好友列表", "LINE 好友列表"])
+            self.configure_dispatcher_stubs([
+                self.chat_observation("受控測試對象", "chat-a"),
+            ])
             done = []
             self.module.send_messages(
                 "text", "去識別測試訊息", "", 1,
@@ -544,15 +587,38 @@ class LineWindows8001FunctionalDryRun(unittest.TestCase):
                 ("press", ("enter",)),
                 ("press", ("enter",)),
                 ("press", ("escape",)),
-                ("press", ("down",)),
             ],
         )
+        self.assertEqual(self.message_side_effects, ["clipboard_write", "line_paste"])
 
-    def test_11_duplicate_chat_stops_before_second_dispatch(self) -> None:
+    def test_11_same_name_different_chat_instances_are_allowed(self) -> None:
+        original_sleep = self.module.time.sleep
+        try:
+            self.configure_dispatcher_stubs([
+                self.chat_observation("同名測試對象", "chat-a"),
+                self.chat_observation("同名測試對象", "chat-b"),
+            ])
+            done = []
+            self.module.send_messages(
+                "text", "去識別測試訊息", "", 2,
+                lambda *_args: None, lambda sent, stopped: done.append((sent, stopped)),
+                authorization_cb=self.allow_dispatch,
+            )
+        finally:
+            self.module.time.sleep = original_sleep
+        self.assertEqual(done, [(2, False)])
+        self.assertEqual(self.message_side_effects.count("line_paste"), 2)
+
+    def test_11b_same_chat_consecutive_second_visit_stops_before_message(self) -> None:
         original_sleep = self.module.time.sleep
         errors = []
+        same_chat = self.chat_observation("受控測試對象", "same-chat")
         try:
-            self.configure_dispatcher_stubs(["LINE 好友列表", "受控測試對象"])
+            self.configure_dispatcher_stubs(
+                [same_chat, same_chat],
+                selection_reads=["selection-a", "returned-a", "selection-a"],
+                transition_reads=["selection-a"],
+            )
             done = []
             self.module.send_messages(
                 "text", "去識別測試訊息", "", 2,
@@ -564,10 +630,109 @@ class LineWindows8001FunctionalDryRun(unittest.TestCase):
             self.module.time.sleep = original_sleep
         self.assertEqual(done, [(1, True)])
         self.assertEqual(errors, ["WIN-DUP-001"])
-        self.assertEqual(
-            [action for action in self.module._test_pyautogui.actions if action == ("press", ("enter",))],
-            [("press", ("enter",)), ("press", ("enter",))],
-        )
+        self.assertEqual(self.message_side_effects.count("line_paste"), 1)
+
+    def test_11c_same_chat_nonconsecutive_visit_stops_before_third_message(self) -> None:
+        original_sleep = self.module.time.sleep
+        errors = []
+        chat_a = self.chat_observation("受控測試甲", "chat-a")
+        chat_b = self.chat_observation("受控測試乙", "chat-b")
+        try:
+            self.configure_dispatcher_stubs(
+                [chat_a, chat_b, chat_a],
+                selection_reads=[
+                    "selection-a", "returned-a",
+                    "selection-b", "returned-b",
+                    "selection-a",
+                ],
+                transition_reads=["selection-b", "selection-a"],
+            )
+            done = []
+            self.module.send_messages(
+                "text", "去識別測試訊息", "", 3,
+                lambda *_args: None, lambda sent, stopped: done.append((sent, stopped)),
+                error_cb=lambda code, *_args: errors.append(code),
+                authorization_cb=self.allow_dispatch,
+            )
+        finally:
+            self.module.time.sleep = original_sleep
+        self.assertEqual(done, [(2, True)])
+        self.assertEqual(errors, ["WIN-DUP-001"])
+        self.assertEqual(self.message_side_effects.count("line_paste"), 2)
+
+    def test_11d_same_main_window_same_title_uses_selection_instance(self) -> None:
+        first = self.chat_observation("同名測試對象", "same-header", pid=4242)
+        second = self.chat_observation("同名測試對象", "same-header", pid=4242)
+        self.assertEqual(first["process_key"], second["process_key"])
+        self.assertEqual(first["title_hash"], second["title_hash"])
+        self.assertEqual(first["fingerprint"], second["fingerprint"])
+        first = self.module.bind_chat_observation_to_selection(first, "selection-a")
+        second = self.module.bind_chat_observation_to_selection(second, "selection-b")
+        self.assertNotEqual(first["fingerprint"], second["fingerprint"])
+        guard = self.module.ChatInstanceGuard()
+        self.assertEqual(guard.classify(first, True), "allow")
+        guard.mark_sent(first)
+        self.assertEqual(guard.classify(second, True), "allow")
+
+    def test_11d2_dynamic_title_and_header_do_not_change_chat_identity(self) -> None:
+        first = self.chat_observation("同一受控對象", "header-before", pid=4242)
+        changed = self.chat_observation("同一受控對象（動態）", "header-after", pid=4242)
+        self.assertNotEqual(first["title_hash"], changed["title_hash"])
+        self.assertNotEqual(first["header_digest"], changed["header_digest"])
+        first = self.module.bind_chat_observation_to_selection(first, "selection-a")
+        changed = self.module.bind_chat_observation_to_selection(changed, "selection-a")
+        self.assertEqual(first["fingerprint"], changed["fingerprint"])
+        guard = self.module.ChatInstanceGuard()
+        self.assertEqual(guard.classify(first, True), "allow")
+        guard.mark_sent(first)
+        self.assertEqual(guard.classify(changed, True), "duplicate")
+
+    def test_11e_ambiguous_initial_transition_has_zero_side_effects(self) -> None:
+        original_sleep = self.module.time.sleep
+        errors = []
+        try:
+            self.configure_dispatcher_stubs(
+                [self.chat_observation("受控測試對象", "chat-a")],
+                selection_reads=[None],
+            )
+            done = []
+            self.module.send_messages(
+                "text", "去識別測試訊息", "", 1,
+                lambda *_args: None, lambda sent, stopped: done.append((sent, stopped)),
+                error_cb=lambda code, *_args: errors.append(code),
+                authorization_cb=self.allow_dispatch,
+            )
+        finally:
+            self.module.time.sleep = original_sleep
+        self.assertEqual(done, [(0, True)])
+        self.assertEqual(errors, ["WIN-TRANSITION-001"])
+        self.assertEqual(self.message_side_effects, [])
+        self.assertEqual(self.module._test_pyautogui.actions, [])
+        self.assertEqual(self.module._test_pyperclip.calls, [])
+
+    def test_11f_lagged_next_selection_stops_before_second_chat(self) -> None:
+        original_sleep = self.module.time.sleep
+        errors = []
+        try:
+            self.configure_dispatcher_stubs(
+                [
+                    self.chat_observation("受控測試甲", "chat-a"),
+                    self.chat_observation("受控測試乙", "chat-b"),
+                ],
+                transition_reads=[None],
+            )
+            done = []
+            self.module.send_messages(
+                "text", "去識別測試訊息", "", 2,
+                lambda *_args: None, lambda sent, stopped: done.append((sent, stopped)),
+                error_cb=lambda code, *_args: errors.append(code),
+                authorization_cb=self.allow_dispatch,
+            )
+        finally:
+            self.module.time.sleep = original_sleep
+        self.assertEqual(done, [(1, True)])
+        self.assertEqual(errors, ["WIN-TRANSITION-004"])
+        self.assertEqual(self.message_side_effects.count("line_paste"), 1)
 
     def test_12_force_stop_before_line_activation(self) -> None:
         original_sleep = self.module.time.sleep
@@ -653,10 +818,10 @@ class LineWindows8001FunctionalDryRun(unittest.TestCase):
 
 
 def main() -> int:
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(LineWindows8001FunctionalDryRun)
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(LineWindowsSuccessorFunctionalDryRun)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     report = {
-        "schema_version": "line_windows_8001_production_source_functional_dry_run_v1",
+        "schema_version": "line_windows_successor_production_source_functional_dry_run_v2",
         "status": "PASS" if result.wasSuccessful() else "FAIL",
         "release_id": EXPECTED_IDENTITY["release_id"],
         "version": EXPECTED_IDENTITY["version"],
@@ -687,7 +852,12 @@ def main() -> int:
             "batch/recipient/send reauthorization",
             "unauthorized/expired/suspended/device-limit/API-deny/offline/tamper/replay zero-send",
             "unsigned or wrong Authenticode identity fail-closed",
-            "duplicate-chat stop",
+            "same-name different-chat allow",
+            "same-chat consecutive and nonconsecutive stop",
+            "same-main-window different-chat allow",
+            "dynamic title/header excluded from chat identity",
+            "friend-list transition proof",
+            "lag/ambiguous transition zero side effects",
             "force-stop before LINE activation",
             "invalid count rejection",
             "fresh OAuth retry after rejected state",

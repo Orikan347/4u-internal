@@ -1,0 +1,143 @@
+{
+  "schema_version": "DA-LINE-WINDOWS-SUCCESSOR-BUILD-GUARD-2026-08-09.1",
+  "status": "GUARD_READY_SUCCESSOR_SAFE_ZERO_OUTPUT_NOT_GRANTED",
+  "release_id": "DA-LINE-WINDOWS-20260809-8002",
+  "version": "8.0.2",
+  "build": "8002",
+  "app_id": "line_automation_windows",
+  "client_id": "deal_alliance_line_windows",
+  "product_id": "line_automation",
+  "platform": "windows",
+  "callback": "dealalliance-line-windows://handoff",
+  "pkce": "S256",
+  "source_path": "release_binding/LINE自動發訊息_Windows.pyw",
+  "source_sha256": "b1d70ee04af4b2fd2a1ccda73600354dd048877f841c0629084314aa9fc6dbfc",
+  "bound_source_sha256": "b1d70ee04af4b2fd2a1ccda73600354dd048877f841c0629084314aa9fc6dbfc",
+  "helper_path": "release_binding/gsheet_helper.py",
+  "helper_sha256": "0e175befe6ff472fbacbeb4e8dbdc8d9af3af6f7b9c78c3ab7a395249a2d6dcd",
+  "functional_test_path": "src/test_line_windows_successor_functional_dry_run.py",
+  "functional_test_sha256": "e6c386b08cafdea5006ae6060dcab4e4f550f8fafab4a25df58b44372fd2ebf3",
+  "workflow_path": ".github/workflows/build-line-autosender-windows.yml",
+  "workflow_sha256": "306b7a47d09eeba8c7501200946b595e94c636d7749133dd3280db7af6e9f30e",
+  "backend_contract_sha256": "93092b1d3dc2d8e26842c11e9d7b8b55374bc90e8ba74cdba96d28ffe2633c5d",
+  "predecessor_release_reuse_forbidden": true,
+  "allocation_path": "release_evidence/2026-08-09_line_windows_successor_8002_release_identity_allocation.json",
+  "allocation_sha256": "a01ec52ee281e91897c8fb0a1409ff25d4e3ece7a35ff77b50062dcd1712511f",
+  "allocation": {
+    "path": "/Users/macminim4/Desktop/Claude cowork/26-06-07_成交聯盟工具訂閱平台/03_工作檔/release_security/2026-08-09_line_windows_successor_8002_release_identity_allocation.json",
+    "sha256": "a01ec52ee281e91897c8fb0a1409ff25d4e3ece7a35ff77b50062dcd1712511f"
+  },
+  "required_identity": {
+    "app_id": "line_automation_windows",
+    "client_id": "deal_alliance_line_windows",
+    "product_id": "line_automation",
+    "platform": "windows",
+    "callback": "dealalliance-line-windows://handoff",
+    "pkce": "S256"
+  },
+  "required_hashes": {
+    "bound_source_sha256": "b1d70ee04af4b2fd2a1ccda73600354dd048877f841c0629084314aa9fc6dbfc",
+    "template_source_sha256": "bf4edcf0cedabb422305066ac0a2a1f4d39cb4b4fb7ecfadecac2c0269541148",
+    "helper_sha256": "0e175befe6ff472fbacbeb4e8dbdc8d9af3af6f7b9c78c3ab7a395249a2d6dcd",
+    "functional_test_sha256": "e6c386b08cafdea5006ae6060dcab4e4f550f8fafab4a25df58b44372fd2ebf3",
+    "workflow_sha256": "306b7a47d09eeba8c7501200946b595e94c636d7749133dd3280db7af6e9f30e",
+    "backend_contract_sha256": "93092b1d3dc2d8e26842c11e9d7b8b55374bc90e8ba74cdba96d28ffe2633c5d"
+  },
+  "collision_policy": {
+    "forbidden_release_ids": [
+      "DA-LINE-WINDOWS-20260717-8000",
+      "DA-LINE-WINDOWS-20260802-8001"
+    ],
+    "minimum_unused_build": "8002",
+    "release_id_must_equal": "DA-LINE-WINDOWS-20260809-8002",
+    "allocate_8003_forbidden": true
+  },
+  "workflow_gate": {
+    "current_successor_safe": true,
+    "fixed_blocker": "EXACT_REMOTE_COMMIT_AND_REF_PENDING",
+    "ssh_remote_read_status": "CURRENT_READ_PASS_USER_CONFIRMED",
+    "exact_commit_ref_verified": false,
+    "grant_blocked_until_exact_commit_ref": true,
+    "grant_requires_new_workflow_hash": false,
+    "current_workflow_must_not_execute_until_fresh_grant": true
+  },
+  "tooling_files": [
+    {
+      "path": "src/verify_windows_no_send_preflight.py",
+      "sha256": "9e08575ac47463bd8ec0d99648865bf0d38768316134edc9fd918d04179fcfcb"
+    },
+    {
+      "path": "src/verify_windows_functional_no_send_preflight.py",
+      "sha256": "9bdeea0ac252b8f7aa3c292e2a32b28d1a106e544005819d0f744c8e6f5c45ef"
+    },
+    {
+      "path": "Windows/source/line_auto_sender_windows_functional_test.pyw",
+      "sha256": "c3ddd1a51fae3ca909f9df817eb73111f8017bc9a5fc24c8f6e52cca6dca8751"
+    },
+    {
+      "path": "src/functional_test_logger.py",
+      "sha256": "ec22004f214010e4527b943146bc778dde9aee799f22eedd306f6b65d0bbbd3f"
+    },
+    {
+      "path": "src/create_windows_private_candidate_evidence.py",
+      "sha256": "4e990e110342bb37534587063df0543c52e0ecfde8598626aa37c10f83c75cea"
+    },
+    {
+      "path": "src/finalize_windows_private_candidate_evidence.py",
+      "sha256": "29ca9dc76c0ebcfbc9a6a7de162c1c5e6c84c3ac72e77c8a55b1ad665d2f866e"
+    },
+    {
+      "path": "src/verify_windows_private_candidate_artifacts.py",
+      "sha256": "00012ec68abfa2d0d841a03133bd456cf47465c62c122e6cc238631b4cf051b0"
+    }
+  ],
+  "output_contract": {
+    "bound_source_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/release_binding/LINE自動發訊息_Windows.pyw",
+    "binding_manifest_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/release_binding/BOUND_SOURCE_MANIFEST.json",
+    "binding_helper_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/release_binding/gsheet_helper.py",
+    "pyinstaller_work_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/pyinstaller/work",
+    "pyinstaller_spec_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/pyinstaller/spec",
+    "gui_exe_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/pyinstaller/dist/LINE_AutoSender.exe",
+    "self_test_source_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/pyinstaller/LINE自動發訊息_Windows_self_test.py",
+    "self_test_exe_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/pyinstaller/dist/LINE_AutoSenderSelfTest.exe",
+    "functional_report_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/evidence/WINDOWS_SUCCESSOR_FUNCTIONAL_DRY_RUN.json",
+    "self_test_report_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/evidence/windows_exe_no_send_self_test.json",
+    "candidate_directory": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/candidate/LINE自動發訊息_Windows候選版",
+    "candidate_exe_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/candidate/LINE自動發訊息_Windows候選版/LINE_AutoSender.exe",
+    "candidate_manifest_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/candidate/LINE自動發訊息_Windows候選版/CANDIDATE_MANIFEST.json",
+    "candidate_sbom_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/candidate/LINE自動發訊息_Windows候選版/SBOM.cdx.json",
+    "package_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/LINE自動發訊息_Windows候選版.zip",
+    "final_evidence_path": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD/evidence/WINDOWS_PRIVATE_CANDIDATE_EVIDENCE.json",
+    "artifact_name": "LINE-WINDOWS-8002-PRIVATE-UNSIGNED",
+    "zip_allowlist": [
+      "LINE_AutoSender.exe",
+      "CANDIDATE_MANIFEST.json",
+      "SBOM.cdx.json"
+    ]
+  },
+  "expected_zero_output": {
+    "candidate_root": "private_candidate/Successor-DA-LINE-WINDOWS-20260809-8002-A01-PENDING-BUILD",
+    "must_be_absent": true,
+    "output_count": 0
+  },
+  "authorization_requirements": {
+    "granted": false,
+    "build_authorized": false,
+    "consumed": false,
+    "nonce": null,
+    "maximum_build_attempts": 1,
+    "reject_replay": true,
+    "reject_existing_output": true,
+    "reject_any_hash_drift": true,
+    "reject_old_identity": true,
+    "reject_allocate_8003": true
+  },
+  "prohibited_actions": {
+    "build": true,
+    "github_push_or_actions": true,
+    "authenticode": true,
+    "certificate_guessing": true,
+    "deployment": true,
+    "line_launch_or_send": true
+  }
+}
