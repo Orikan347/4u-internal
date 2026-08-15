@@ -1,6 +1,6 @@
 {
   "schema_version": "DA-LINE-WINDOWS-SUCCESSOR-ONE-TIME-BUILD-INPUT-2026-08-09.1",
-  "status": "FRESH_OWNER_ONCE_GRANTED_READY_FOR_EXACT_WORKFLOW_DISPATCH",
+  "status": "CONSUMED_FIRST_FIXED_FAILURE_TOOLING_HASH_MISMATCH_ZERO_OUTPUT",
   "release_id": "DA-LINE-WINDOWS-20260809-8002",
   "version": "8.0.2",
   "build": "8002",
@@ -27,10 +27,10 @@
   "guard_sha256": "6756a19bc48a7ccb1b17d020ecd0da4582451869f29f57bcf53450c5edd765b7",
   "file_mode": "0600",
   "private_input": true,
-  "granted": true,
-  "build_authorized": true,
-  "consumed": false,
-  "nonce": "445739c3a393f51dac1efc16a3beb8465d03bb43d8cdcd82d1b94d92f1ac3cbb",
+  "granted": false,
+  "build_authorized": false,
+  "consumed": true,
+  "nonce": null,
   "maximum_build_attempts": 1,
   "allocation": {
     "path": "/Users/macminim4/Desktop/Claude cowork/26-06-07_成交聯盟工具訂閱平台/03_工作檔/release_security/2026-08-09_line_windows_successor_8002_release_identity_allocation.json",
@@ -41,21 +41,21 @@
     "sha256": "6756a19bc48a7ccb1b17d020ecd0da4582451869f29f57bcf53450c5edd765b7"
   },
   "authorization": {
-    "granted": true,
-    "build_authorized": true,
-    "consumed": false,
-    "nonce": "445739c3a393f51dac1efc16a3beb8465d03bb43d8cdcd82d1b94d92f1ac3cbb",
+    "granted": false,
+    "build_authorized": false,
+    "consumed": true,
+    "nonce": null,
     "authorization_id": "DA-LINE-WINDOWS-8002-OWNER-ONCE-20260815T152422Z",
     "issued_at": "2026-08-15T15:24:22Z",
     "expires_at": "2026-08-15T15:54:22Z",
     "ttl_seconds": 1800,
     "maximum_build_attempts": 1,
-    "build_attempts": 0,
+    "build_attempts": 1,
     "replay_allowed": false,
-    "revoked_locally": false,
-    "revoked_at": null,
+    "revoked_locally": true,
+    "revoked_at": "2026-08-15T15:25:33Z",
     "expired_without_dispatch": false,
-    "not_granted_reason": null
+    "not_granted_reason": "FIRST_FIXED_FAILURE_TOOLING_FILE_HASH_MISMATCH_ZERO_OUTPUT"
   },
   "exact_build_argv": {
     "working_directory": "/private/tmp/deal-alliance-windows-8002-remote-repo",
@@ -86,10 +86,10 @@
     "authorization_input_sha256_source": "COMPUTE_FROM_FINAL_GRANTED_INPUT_AT_DISPATCH",
     "resolved": true,
     "resolved_command_location": "backend_row.safe_dispatch",
-    "executed": false,
+    "executed": true,
     "non_executable_until_fresh_grant": false,
-    "revoked": false,
-    "dispatch_allowed": true
+    "revoked": true,
+    "dispatch_allowed": false
   },
   "tooling_files": [
     {
@@ -158,7 +158,7 @@
     "output_count": 0,
     "must_be_absent": true
   },
-  "next_gate": "EXECUTE_EXACT_WORKFLOW_DISPATCH_ONCE_THEN_APPEND_ONLY_CONSUMED_CLOSEOUT",
+  "next_gate": "NEW_SUCCESSOR_AFTER_WORKFLOW_TOOLING_HASH_DIAGNOSTIC_AND_EOF_LOCK",
   "network_requests": 0,
   "external_writes": 0
 }
